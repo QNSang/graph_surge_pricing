@@ -1,0 +1,58 @@
+note: ""                  # tu ghi run nay khac gi
+seed: 0
+
+data:
+  path: ../data/hcm_data  # tuong doi voi thu muc pipeline/
+  train: [week1, week6]
+  val: week7
+  test: week8
+  purge_min: 30
+  window: 4
+  horizons: [5, 10, 15]
+  snapshot_min: 5
+  eps: 1.0e-3
+  debug_days: null        # so ngay de chay thu nhanh (moi split), null = chay du
+  cache: true             # cache grid vao pipeline/cache/
+
+features:
+  eta_edges_min: [5.0, 10.0, 15.0]   # S_eff: ETA<=5 -> w0, <=10 -> w1, <=15 -> w2, >15 -> 0
+  eta_weights: [1.0, 0.5, 0.2]
+  travel_window_min: 30              # edge travel_time: trung binh chuyen hoan thanh trong 30 phut
+
+model:
+  name: gru_gatv2         # logds | logds_eff | lgbm | gru_only | gru_gatv2
+  gru_hidden: 64
+  gat_layers: 2
+  gat_heads: 4
+  head_hidden: 32
+  dropout: 0.1
+  lgbm:
+    n_estimators: 500
+    learning_rate: 0.05
+    num_leaves: 63
+    min_child_samples: 50
+    subsample: 0.8
+    colsample_bytree: 0.8
+    early_stopping_rounds: 30
+
+loss:                     # ten khop ky hieu trong tai lieu thiet ke
+  level: {weight: 1.0, huber_delta: 1.0, rho: 0.5}
+  diff:  {weight: 0.0}    # gamma
+  rank:  {weight: 0.0, temperature: 1.0, margin: 0.1}   # eta, T, do lech toi thieu cua cap
+  short: {weight: 0.0, tau_s: 0.5}                      # delta
+
+train:
+  lr: 3.0e-4
+  epochs: 50
+  batch_size: 8
+  eval_batch_size: 64
+  patience: 10
+  select_by: val_pairacc_10
+  weight_decay: 0.0
+  grad_clip: 1.0
+  warn_const_ratio: 0.01  # canh bao neu std(lambda) < ti le nay * std(y)
+  warn_leak_margin: 0.1   # canh bao leakage neu PairAcc val epoch 1 vuot persistence qua muc nay
+
+eval:                     # PairAcc: chi cap co volume cao, bo cap gan hoa
+  margin_m: 0.1           # bo cap |y_i - y_j| <= m
+  min_volume: 10.0        # ca hai hex can D + S_eff >= min_volume (tai t+h)

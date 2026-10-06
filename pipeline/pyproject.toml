@@ -1,0 +1,17 @@
+[project]
+name = "graph-surge-pipeline"
+version = "0.1.0"
+description = "Training pipeline for graph surge pricing (lambda prediction on H3 hex graph)"
+requires-python = ">=3.10"
+dependencies = [
+    "torch",
+    "numpy",
+    "pandas",
+    "pyarrow",
+    "scipy",
+    "lightgbm",
+    "pyyaml",
+]
+
+[tool.uv]
+package = false

@@ -1,0 +1,121 @@
+# Mock data generator config. Spec: docs/data/mock_data_spec_hcmc.md (v3)
+seed: 42
+center_lat: 10.7725          # HCMC, District 1
+center_lng: 106.6980
+h3_res: 7
+ring_radius: 4
+start_date: "2026-01-05"     # Monday
+burn_in_days: 1              # simulated before start_date to warm up drivers, never exported
+tick_minutes: 1
+snapshot_minutes: 5
+
+# Profiles: `full` = 61-day set, `dev` = 35-day development set (spec 3, 3.2).
+profiles:
+  full:
+    n_days: 61
+    split: {train: [1, 45], val: [46, 53], test: [54, 61]}
+    rain_days: 10
+    venue_events: 7
+  dev:
+    n_days: 35
+    split: {train: [1, 25], val: [26, 30], test: [31, 35]}
+    rain_days: 6
+    venue_events: 4
+
+heterogeneity:
+  hex_demand_sigma: 0.25
+  hex_attract_sigma: 0.20
+  day_sigma: 0.08
+  dow: {mon: 1.0, tue: 1.0, wed: 1.0, thu: 1.0, fri: 1.10, sat: 1.05, sun: 0.90}
+
+demand:
+  scale: 1.6                 # calibration knob: global multiplier on base_per_min
+  base_per_min: {cbd: 0.6, office: 0.3, venue: 0.3, residential: 0.25, suburb: 0.04, airport: 0.06}
+  gamma_k: 8
+  price_sensitivity: 0.7
+  gravity_L_km: 5.0
+  intra_hex_prob: 0.20
+  patience_mean_min: 4         # spec 6; lowered in calibration
+  patience_max_min: 10
+  post_accept_cancel: {base: 0.02, per_min_over_4: 0.002}
+  fri_sat_night_mult: 1.2    # cbd and venue, Friday and Saturday from 18:00
+
+trip:
+  speed_kmh: {peak: 18, offpeak: 28}
+  road_factor: 1.3
+  fixed_min: 2
+  duration_noise_sigma: 0.15
+  intra_hex_min_floor: 3
+
+drivers:
+  online_scale: 0.55         # calibration knob: global multiplier on online_target
+  pool_margin: 1.25          # driver pool size = max online target * margin
+  home_zone_share: {residential: 0.6, suburb: 0.3, other: 0.1}
+  online_target: {"0-5": 800, "6-9": 1650, "10-15": 2000, "16-19": 1700, "20-23": 1700}   # spec 250/1800/1400/1900/1100; reshaped in calibration, times online_scale
+  day_elasticity: 0.5
+  min_session_min: 90
+  shift_lognormal: {median_min: 360, sigma: 0.4}
+  pickup_same_hex: {fixed: 4, exp_mean: 2}
+  pickup_neighbor: {fixed: 9, exp_mean: 3}
+  dispatch_delay_sec: [5, 20]
+  reposition: {prob: 0.7, power: 8, minutes: 8, idle_min: 2}   # spec 0.10 / 2 / 8 / 5
+
+eta:
+  same_hex: {fixed: 4, exp_mean: 1}
+  ring1: {fixed: 9, exp_mean: 2}
+  ring2: {fixed: 15, exp_mean: 3}
+  far_min: 20
+
+base_surge: {gain: 0.5, ema: 0.4, min: 1.0, max: 3.0, step: 0.05, deadzone: 0.15}   # deadzone: log demand/supply ratio below this gives no surge (spec has none)
+
+rain:
+  episodes_per_day: [1, 3]
+  afternoon_share: 0.6
+  afternoon_window: ["13:00", "18:00"]
+  episode_min: [60, 180]
+  intensity_range: [0.3, 1.0]
+  demand_per_intensity: 0.5
+  speed_factor: 0.8
+  eta_factor: 1.2
+  driver_factor: 0.9
+
+signals:
+  graph_signal_strength: [1.0]    # spec ablations 0.5 / 0.0 and the shuffled control: --g 1.0 0.5 0.0 --shuffled
+  shuffled_control: false
+  s1_ramp:
+    range: [1.3, 1.8]
+    lead_min: 30
+    decay_min: 30
+    peak_jitter_min: 10
+    peaks:
+      - {time: "07:30", zones: [residential, suburb]}
+      - {time: "17:30", zones: [cbd, office]}
+  s2a: {attract_range: [0.1, 0.5], start_jitter_min: 45}
+  s2b: {per_week: 3, zones: [cbd, office, residential], hours: ["08:00", "21:00"],
+        duration_min: [30, 60], demand_mult: 2.5, dest_L_km: 8.0, self_attract_mult: 0.2}
+  s3: {banks: ["07:30", "10:00", "13:00", "16:30", "19:00", "22:30"],
+       delay_sd_min: 15, load_sigma: 0.4, wave_per_min: 1.0, wave_min: 40,
+       pre_inbound_min: 30, pre_inbound_mult: 2.0}
+  s4: {end_range: ["21:00", "23:00"], size_range: [3, 8],
+       pre_hours: [1, 2], pre_attract_mult: 4.0, post_min: 45}
+
+# Destination attractiveness A_z(t), weekday. Columns: cbd, office, venue, residential, suburb, airport.
+# office 16-19 is overwritten each day by a_drain (S2a).
+zones: [cbd, office, venue, residential, suburb, airport]
+hour_profile_p:        # spec 4.1; keys = khung (start-end hour)
+  "0-5":   [0.3, 0.1, 0.3, 0.2, 0.2, 0.6]
+  "6-9":   [1.0, 0.6, 0.4, 2.2, 1.5, 1.0]
+  "10-15": [1.4, 0.9, 0.8, 0.8, 0.6, 1.0]
+  "16-19": [1.6, 2.4, 1.0, 0.9, 0.7, 1.0]
+  "20-23": [1.5, 0.4, 1.6, 0.8, 0.5, 1.0]
+attract_A:             # spec 4.3
+  "0-5":   [1.0, 0.2, 0.5, 2.0, 1.5, 0.8]
+  "6-9":   [2.0, 2.5, 0.3, 0.5, 0.4, 0.8]
+  "10-15": [1.8, 1.2, 0.6, 0.8, 0.6, 0.8]
+  "16-19": [1.2, null, 0.8, 2.2, 1.8, 0.8]
+  "20-23": [1.8, 0.3, 1.5, 1.6, 1.2, 0.8]
+
+output:
+  format: parquet
+  partition_by: date
+  weather: true

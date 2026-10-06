@@ -1,0 +1,8 @@
+h3>=4
+numpy
+pandas
+pyarrow
+pyyaml
+numba
+scipy
+pytest
