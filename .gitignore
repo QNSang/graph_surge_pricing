@@ -1,5 +1,5 @@
 ﻿# du lieu sinh ra, venv, cache, ket qua train
-data/
+/data/
 .venv/
 __pycache__/
 *.pyc
