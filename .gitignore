@@ -3,6 +3,12 @@
 .venv/
 __pycache__/
 *.pyc
-pipeline/runs/
+pipeline/runs*/
 pipeline/cache/
 .claude/
+artifacts/
+.pytest_cache/
+.ipynb_checkpoints/
+.jupyter/
+.jupyter_ystore.db
+anaconda_projects/

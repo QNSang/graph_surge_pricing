@@ -14,7 +14,7 @@ for name in ('numpy', 'pandas', 'numba', 'h3', 'pyarrow', 'yaml', 'torch', 'ligh
         packages[name] = {'available': True, 'version': getattr(mod, '__version__', 'unknown')}
     except Exception as exc:
         packages[name] = {'available': False, 'error': str(exc)}
-paths = ['mock_data_pipeline/surge_mock/kernel.py', 'mock_data_pipeline/surge_mock/simulate.py', 'mock_data_pipeline/surge_mock/writers.py', 'pipeline/model.py']
+paths = ['mock_data_pipeline/surge_mock/kernel.py', 'mock_data_pipeline/surge_mock/simulate.py', 'mock_data_pipeline/surge_mock/writers.py']
 print(json.dumps({'python': sys.version, 'root': str(root), 'packages': packages,
     'disk_free_gb': round(shutil.disk_usage(root).free / 1024**3, 2),
     'source_sha256': {p: hashlib.sha256((root/p).read_bytes()).hexdigest() for p in paths}}, indent=2))

@@ -1,8 +1,10 @@
 # Mock V2: 30-day data preparation
 
-This workflow corrects the existing minute-level generator and prepares inputs for
-`pipeline/model.py`. It does not overwrite `data/hcm_data`, old training runs or the
-user's existing EDA notebook.
+This workflow corrects the existing minute-level generator and exports a
+training-ready release. The current release lives at `data/hcm_data_2` (see
+`data/CURRENT.json`). The training pipeline is being rewritten from scratch in
+`pipeline/`; the loader/model used when this release was generated is preserved
+under the release's `provenance/pipeline/`.
 
 ## Output contract
 
@@ -26,8 +28,9 @@ pressure proxy, not optimal surge or causal revenue uplift.
 5. Validate raw order/snapshot invariants and driver job non-overlap.
 6. Build 40 node / 10 edge features with support columns and point-in-time prefix tests.
 7. Use one manifest-based split, train-only normalization and payload SHA256 checks.
-8. Exercise existing LightGBM/GRU-GATv2 models and checkpoint reloads.
-9. Promote only a validated staging directory and write `data/CURRENT.json`.
+8. Smoke-test LightGBM/GRU-GATv2 models (legacy pipeline, since removed).
+9. Promote the validated staging directory and write `data/CURRENT.json`
+   (the one-off `promote.py` is in git history; it depended on the removed pipeline).
 
 ## Commands (from repository root; PowerShell)
 
@@ -41,16 +44,8 @@ pressure proxy, not optimal surge or causal revenue uplift.
 Outputs must be new paths. Generation deliberately refuses overwrite. Pytest's
 `--basetemp` must be a new disposable directory inside this authorized repository.
 
-After release:
-
-```powershell
-.\pipeline\.venv\Scripts\python.exe pipeline/train_v2.py --data data/releases/hcm_mock_v2_30d_seed42 --model lgbm --trees 300 --out pipeline/runs_v2/lgbm_full_01
-.\pipeline\.venv\Scripts\python.exe pipeline/train_v2.py --data data/releases/hcm_mock_v2_30d_seed42 --model gru_gatv2 --epochs 30 --out pipeline/runs_v2/gat_full_01
-```
-
-The old `pipeline/train.py` raw loader retains its legacy contract. Use
-`pipeline/train_v2.py` / `pipeline/prepared_data.py` for these prepared arrays.
-The existing model and loss implementations are reused; no legacy cache is loaded.
+Training on the release is handled by the new pipeline in `pipeline/` (in progress).
+It should read `features/` and `raw/` parquet; `training/` is a pre-built tensor cache.
 
 ## Scope and limitations
 
