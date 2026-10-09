@@ -63,6 +63,10 @@ def assign_homes(cfg, geo, n_drivers, rng):
 def run_simulation(cfg, geo, exo, g, log=print):
     """Returns the raw simulation buffers (including burn-in) for strength g."""
     P = build_params(cfg)
+    radius = float(geo.intra_radius_km)
+    if not np.isfinite(radius) or radius <= 0:
+        raise ValueError("intra-hex radius must be finite and positive")
+    P[K.P_INTRA_R] = radius
     n_drivers = int(exo.target.max() * cfg.drivers["pool_margin"]) + 50
     home = assign_homes(cfg, geo, n_drivers, stream(cfg.seed, "drivers"))
     order_cap = int(exo.intents.sum()) + 1000

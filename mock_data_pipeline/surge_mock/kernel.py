@@ -28,6 +28,7 @@ STATE_FIELDS = [
     "o_dropoff", "o_cancel", "pend", "cnt", "surge", "win_demand",
     "snap_demand", "snap_supply", "snap_wait", "snap_eta", "snap_surge", "stats",
     "scratch_i", "scratch_f", "cdf",
+    "o_ready", "o_driver", "o_available_at",
 ]
 State = namedtuple("State", STATE_FIELDS)
 
@@ -52,8 +53,10 @@ def make_state(adj, adj_n, hex_dist, dkm, home, order_cap, n_windows):
         surge=np.ones(H), win_demand=np.zeros(H, np.int64),
         snap_demand=np.zeros((n_windows, H), np.int32), snap_supply=np.zeros((n_windows, H), np.int32),
         snap_wait=np.zeros((n_windows, H), np.int32), snap_eta=np.zeros((n_windows, H)),
-        snap_surge=np.zeros((n_windows, H)), stats=np.zeros((n_windows, 4)),
+        snap_surge=np.zeros((n_windows, H)), stats=np.zeros((n_windows, 5)),
         scratch_i=np.zeros(ND, np.int64), scratch_f=np.zeros(ND), cdf=np.zeros((H, H)),
+        o_ready=np.zeros(order_cap), o_driver=np.full(order_cap, -1, np.int64),
+        o_available_at=np.full(order_cap, nan),
     )
 
 
@@ -93,6 +96,10 @@ def remove_idle(S, d):
 
 @njit(cache=True)
 def try_match(S, P, oid, t):
+    if t < S.o_created[oid] or t < S.o_ready[oid] or t > S.o_deadline[oid]:
+        return False
+    if not np.isnan(S.o_accept[oid]) or not np.isnan(S.o_cancel[oid]):
+        return False
     o = S.o_origin[oid]
     if S.idle_cnt[o] > 0:
         h = o
@@ -112,6 +119,10 @@ def try_match(S, P, oid, t):
         pk = P[P_PK_NB_F] + _exp(P[P_PK_NB_E])
     r = np.random.randint(0, S.idle_cnt[h])
     d = S.idle_list[h, r]
+    if S.d_state[d] != 1 or S.d_idle_since[d] > t:
+        return False
+    S.o_driver[oid] = d
+    S.o_available_at[oid] = S.d_idle_since[d]
     remove_idle(S, d)
     S.d_state[d] = 2
     S.d_order[d] = oid
@@ -134,23 +145,24 @@ def try_match(S, P, oid, t):
 
 @njit(cache=True)
 def process_releases(S, te):
+    # An event changes state only when its event time has been reached.
     for d in range(S.d_state.shape[0]):
-        s = S.d_state[d]
-        if s == 2:
-            if S.d_release[d] <= te:
-                if S.d_cancel[d] == 1:
-                    add_idle(S, d, S.d_hex[d], te)
-                else:
-                    S.d_state[d] = 3
-                    S.d_release[d] = S.o_dropoff[S.d_order[d]]
-        elif s == 3:
-            if S.d_release[d] <= te:
-                add_idle(S, d, S.o_dest[S.d_order[d]], te)
-        elif s == 1:
-            if S.d_move_to[d] >= 0 and S.d_move_arr[d] <= te:
-                dest = S.d_move_to[d]
-                remove_idle(S, d)
-                add_idle(S, d, dest, te)
+        if S.d_state[d] == 2 and S.d_release[d] <= te:
+            event_at = S.d_release[d]
+            if S.d_cancel[d] == 1:
+                add_idle(S, d, S.d_hex[d], event_at)
+            else:
+                S.d_state[d] = 3
+                S.d_release[d] = S.o_dropoff[S.d_order[d]]
+        # A pickup and a short trip may both finish before this observation.
+        if S.d_state[d] == 3 and S.d_release[d] <= te:
+            event_at = S.d_release[d]
+            dest = S.o_dest[S.d_order[d]]
+            add_idle(S, d, dest, event_at)
+        elif S.d_state[d] == 4 and S.d_move_arr[d] <= te:
+            event_at = S.d_move_arr[d]
+            dest = S.d_move_to[d]
+            add_idle(S, d, dest, event_at)
 
 
 @njit(cache=True)
@@ -276,10 +288,9 @@ def new_orders(S, P, k, intents_row, cdf, rain, vpeak):
         order = np.argsort(S.o_created[start:end])
         for q in range(end - start):
             oid = start + order[q]
-            t = S.o_created[oid] + (P[P_DISP_LO] + np.random.random() * (P[P_DISP_HI] - P[P_DISP_LO])) / 60.0
-            if not try_match(S, P, oid, t):
-                S.pend[S.cnt[C_PEND]] = oid
-                S.cnt[C_PEND] += 1
+            S.o_ready[oid] = S.o_created[oid] + (P[P_DISP_LO] + np.random.random() * (P[P_DISP_HI] - P[P_DISP_LO])) / 60.0
+            S.pend[S.cnt[C_PEND]] = oid
+            S.cnt[C_PEND] += 1
 
 
 @njit(cache=True)
@@ -301,6 +312,8 @@ def reposition(S, P, te):
                         if acc >= r:
                             pick = j
                             break
+                    remove_idle(S, d)
+                    S.d_state[d] = 4
                     S.d_move_to[d] = pick
                     S.d_move_arr[d] = te + P[P_REPO_MIN]
 
@@ -362,36 +375,58 @@ def build_cdf(S, A_row, L_row):
 
 
 @njit(cache=True)
+def advance_market(S, P, start, end):
+    """Advance monotonically through dispatch/release events, then the tick end.
+
+    Request arrivals may have been sampled for this minute, but their dispatch
+    cannot occur before o_ready. Patience expiry is tested before any match.
+    """
+    cursor = float(start)
+    while cursor < end:
+        next_t = float(end)
+        for q in range(S.cnt[C_PEND]):
+            ready = S.o_ready[S.pend[q]]
+            if cursor < ready < next_t:
+                next_t = ready
+        for d in range(S.d_state.shape[0]):
+            state = S.d_state[d]
+            if state == 2 or state == 3:
+                release = S.d_release[d]
+            elif state == 4:
+                release = S.d_move_arr[d]
+            else:
+                continue
+            if cursor < release < next_t:
+                next_t = release
+        process_releases(S, next_t)
+        expire_pending(S, next_t)
+        match_pending(S, P, next_t)
+        cursor = next_t
+
+
+
+@njit(cache=True)
 def run_windows(S, P, w0, w1, intents, A, L, rain, vpeak, target):
-    """Simulate windows [w0, w1). Window w covers ticks 5w .. 5w+4; its snapshot is stamped at 5w+5 min."""
+    """Minute demand draws with chronological dispatch/release events.
+
+    Stats are five end-of-minute samples per window, not exact driver-minutes.
+    Repositioning is explicitly unavailable until arrival (state 4).
+    """
     for w in range(w0, w1):
         build_cdf(S, A[w], L[w])
         for m in range(5):
             k = w * 5 + m
-            te = k + 1.0
-            process_releases(S, te)
-            shift_mgmt(S, P, te, target[k])
-            expire_pending(S, te)
-            match_pending(S, P, te)
+            process_releases(S, float(k))
+            shift_mgmt(S, P, float(k), target[k])
+            expire_pending(S, float(k))
+            match_pending(S, P, float(k))
             new_orders(S, P, k, intents[k], S.cdf, rain[k], vpeak[k])
-            n_on = 0
-            n_idle = 0
-            n2 = 0
-            n3 = 0
+            advance_market(S, P, float(k), k + 1.0)
             for d in range(S.d_state.shape[0]):
-                s = S.d_state[d]
-                if s != 0:
-                    n_on += 1
-                if s == 1:
-                    n_idle += 1
-                elif s == 2:
-                    n2 += 1
-                elif s == 3:
-                    n3 += 1
-            S.stats[w, 0] += n_on
-            S.stats[w, 1] += n_idle
-            S.stats[w, 2] += n2
-            S.stats[w, 3] += n3
+                state = S.d_state[d]
+                if state != 0:
+                    S.stats[w, 0] += 1
+                    S.stats[w, state] += 1
         reposition(S, P, w * 5 + 5.0)
         snapshot(S, P, w, rain[w * 5 + 4])
 
