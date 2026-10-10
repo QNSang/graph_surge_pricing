@@ -1,6 +1,6 @@
-runs/
-cache/
-data/
+/runs/
+/cache/
+/data/
 __pycache__/
 .venv/
 .pytest_tmp/
