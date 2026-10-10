@@ -12,6 +12,17 @@ from surge_ml.features import COLUMNS, Variant
 FIXED = {"objective": "regression_l2", "subsample_freq": 1, "verbose": -1}
 ROUNDS = ("n_estimators", "early_stopping", "smoke_estimators")
 MODEL_FILE = "model.txt"
+LOG_EVERY = 50  # vòng boosting giữa hai dòng log val
+
+
+def _progress(name: str, every: int):
+    """In l2 trên val mỗi `every` vòng, cùng kiểu dòng epoch của GRU."""
+    def callback(env: lgb.callback.CallbackEnv) -> None:
+        i = env.iteration + 1
+        if i % every == 0 or i == env.end_iteration:
+            _, metric, value, _ = env.evaluation_result_list[0]
+            print(f"[{name}] round {i} val/{metric}={value:.6f}", flush=True)
+    return callback
 
 
 def design(data: DerivedData, cols: list[int], ks: np.ndarray) -> np.ndarray:
@@ -40,7 +51,9 @@ def fit(data: DerivedData, variant: Variant, train_ks: np.ndarray, val_ks: np.nd
     val_set = lgb.Dataset(X_va, r_va, categorical_feature=cat, reference=train_set)
     booster = lgb.train({**FIXED, **params.model_dump(exclude=set(ROUNDS)), "seed": seed}, train_set,
                         num_boost_round=params.smoke_estimators if smoke else params.n_estimators,
-                        valid_sets=[val_set], callbacks=[lgb.early_stopping(params.early_stopping, verbose=False)])
+                        valid_sets=[val_set], callbacks=[lgb.early_stopping(params.early_stopping, verbose=False),
+                                                         _progress(variant.name, LOG_EVERY)])
+    print(f"[{variant.name}] best_round {booster.best_iteration} of {booster.current_iteration()}", flush=True)
     booster.save_model(str(out / MODEL_FILE), num_iteration=booster.best_iteration)
     return booster
 
