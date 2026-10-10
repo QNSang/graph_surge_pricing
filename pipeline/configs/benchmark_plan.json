@@ -1,0 +1,41 @@
+{
+  "schema_version": "2.0",
+  "study_id": "hcm-v12-w4-003",
+  "base_config_path": "train.yaml",
+  "feature_contract_id": "hex40_edge10_w4_v1_2",
+  "target_contract_id": "ds_logratio_eps1_h5_v1_2",
+  "seeds": [42, 43, 44],
+  "selection_metric": "val/<primary_head>/mae_q",
+  "test_access_policy": "frozen_final_eval_only",
+  "required_comparators": ["persistence", "gru_local37", "gru_pointwise40"],
+  "variants": [
+    {"variant_id": "persistence", "enabled": true, "primary_head": "local", "graph_relations": []},
+    {"variant_id": "seasonal_naive", "enabled": true, "primary_head": "local", "graph_relations": []},
+    {"variant_id": "lgbm37", "enabled": true, "primary_head": "local", "graph_relations": []},
+    {"variant_id": "lgbm40", "enabled": true, "primary_head": "local", "graph_relations": []},
+    {"variant_id": "gru_local37", "enabled": true, "primary_head": "local", "graph_relations": []},
+    {"variant_id": "gru_pointwise40", "enabled": true, "primary_head": "local", "graph_relations": []},
+    {"variant_id": "gru_strict32", "enabled": true, "primary_head": "local", "graph_relations": []},
+    {"variant_id": "gru_gatv2_40", "enabled": true, "primary_head": "graph", "graph_relations": ["adjacency", "od"]},
+    {"variant_id": "gru_gatv2_40_no_od", "enabled": true, "primary_head": "graph", "graph_relations": ["adjacency"]},
+    {"variant_id": "gru_gatv2_40_no_adj", "enabled": true, "primary_head": "graph", "graph_relations": ["od"]}
+  ],
+  "controller_evaluation": {
+    "stage": "after_forecast_selection",
+    "execution_mode": "demo",
+    "calibrated": false,
+    "policy_version": "w4_pressure_revision_demo_v1",
+    "reference_version": "smoothed_q_reference_demo_v1",
+    "max_requested_delta": 0.4,
+    "deployment_eligible": false,
+    "required_checks": [
+      "finite_forecasts",
+      "q_local_at_least_q_min",
+      "direction_gate",
+      "requested_cap",
+      "global_cap",
+      "invalid_bidding_blocks_output",
+      "audit_reason_and_versions"
+    ]
+  }
+}

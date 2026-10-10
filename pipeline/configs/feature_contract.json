@@ -1,0 +1,163 @@
+{
+  "schema_version": "2.0",
+  "status": "active_research_contract",
+  "deployment_eligible": false,
+  "feature_contract_id": "hex40_edge10_w4_v1_2",
+  "target_contract_id": "ds_logratio_eps1_h5_v1_2",
+  "graph_contract_id": "directed_relations_self_v1",
+  "model_contract_id": "dual_gru_gatv2_h5_v1_2",
+  "source": {
+    "dataset_pointer": "data/CURRENT.json",
+    "physical_root": "data/hcm_data_2",
+    "source_feature_contract": "meta/feature_contract.json",
+    "source_manifest": "meta/manifest.json",
+    "forbidden_input_roots": ["oracle"]
+  },
+  "node_features": [
+    "demand_5m",
+    "idle_supply_t",
+    "backlog_t",
+    "eta_sec_t",
+    "local_pressure_log_t",
+    "demand_sum_15m",
+    "demand_mean_60m",
+    "demand_std_60m",
+    "demand_momentum_15m",
+    "idle_supply_mean_15m",
+    "idle_supply_momentum_15m",
+    "match_rate_matured_15m",
+    "cancel_rate_matured_15m",
+    "pickup_wait_p90_30m",
+    "current_surge_t",
+    "surge_delta_15m",
+    "rain_intensity_t",
+    "hour_sin",
+    "hour_cos",
+    "dow_sin",
+    "dow_cos",
+    "is_weekend",
+    "zone_airport",
+    "zone_cbd",
+    "zone_office",
+    "zone_residential",
+    "zone_suburb",
+    "zone_venue",
+    "ring",
+    "effective_supply_t",
+    "arriving_trip_count_eta_0_5_t",
+    "arriving_trip_count_eta_5_10_t",
+    "arriving_trip_count_eta_10_15_t",
+    "completed_inflow_15m",
+    "pickup_outflow_15m",
+    "neighbor_demand_mean_t",
+    "neighbor_idle_supply_mean_t",
+    "neighbor_pressure_mean_t",
+    "od_destination_entropy_30m",
+    "od_support_30m"
+  ],
+  "feature_views": {
+    "local37": {
+      "model_variant": "gru_local37",
+      "exclude_indices": [35, 36, 37],
+      "description": "Pointwise/local view; includes observed inbound at the same hex."
+    },
+    "neighbor3": {
+      "indices": [35, 36, 37],
+      "description": "Neighbor aggregates routed only to the graph branch."
+    },
+    "pointwise40": {
+      "model_variant": "gru_pointwise40",
+      "indices": "0..39",
+      "description": "All node features without graph message passing."
+    },
+    "strict32": {
+      "model_variant": "gru_strict32",
+      "base": "local37",
+      "exclude_indices": [29, 30, 31, 32, 33],
+      "persistence_bypass": "log((D+1)/(idle_supply+1))"
+    }
+  },
+  "edge_features": [
+    "edge_is_adjacent",
+    "edge_is_od",
+    "distance_km",
+    "travel_time_est_min",
+    "od_requests_5m",
+    "od_requests_30m",
+    "od_completed_15m",
+    "od_in_trip_count_t",
+    "od_arrivals_eta_le5m_t",
+    "od_transition_prob_30m"
+  ],
+  "internal_edge_features": [
+    "edge_is_adjacent",
+    "edge_is_od",
+    "distance_km",
+    "travel_time_est_min",
+    "od_requests_5m",
+    "od_requests_30m",
+    "od_completed_15m",
+    "od_in_trip_count_t",
+    "od_arrivals_eta_le5m_t",
+    "od_transition_prob_30m",
+    "is_self"
+  ],
+  "dimensions": {
+    "node": 40,
+    "edge_raw": 10,
+    "edge_internal": 11,
+    "local": 37,
+    "neighbor": 3,
+    "strict_local": 32
+  },
+  "temporal": {
+    "window_steps": 4,
+    "snapshot_minutes": 5,
+    "window_endpoints": ["t-15", "t-10", "t-5", "t"],
+    "horizon_minutes": 5,
+    "configurable": {
+      "note": "window_steps and horizon_minutes above are defaults; a run sets data.window_steps and data.horizon_steps in its train config",
+      "window_steps": ">=1 (horizon study uses 6 = t-25..t)",
+      "horizon_steps": [1, 2, 3],
+      "horizon_minutes": [5, 10, 15],
+      "target_shift": "y[k] = b[k+horizon_steps], computed at load time from the derived b; the derived cache is shared",
+      "candidate_rule": "range(a+window_steps+10, z-9)"
+    },
+    "split_rule": "whole days, in order train/val/test; days from data.split_days in train.yaml, else the source meta/manifest.json suggested_split_days_inclusive",
+    "split_bounds_rule": "[(first_day-1)*288, last_day*288)",
+    "candidate_rule": "range(a+14,z-9)",
+    "reference_candidate_counts": {
+      "30d_21_4_5": {"train": 6025, "val": 1129, "test": 1417},
+      "90d_63_13_14": {"train": 18121, "val": 3721, "test": 4009}
+    }
+  },
+  "target": {
+    "effective_supply": "idle_supply + arrivals_0_5 + 0.5*arrivals_5_10 + 0.2*arrivals_10_15",
+    "equation": "y[t+5]=log((D[t+5]+1)/(S_eff[t+5]+1))",
+    "persistence": "b[t]=log((D[t]+1)/(S_eff[t]+1))",
+    "inverse": "exp",
+    "output_domain": "signed_log_ratio",
+    "zero_demand_or_supply": "valid because epsilon=1 is applied to numerator and denominator"
+  },
+  "normalization": {
+    "policy": "zscore",
+    "fit": "train snapshots only",
+    "population_std": true,
+    "std_floor": 1e-6,
+    "constant_std_replacement": 1.0
+  },
+  "graph": {
+    "direction": "source_to_destination",
+    "relations": ["adjacency", "od"],
+    "synthetic_self_loop_per_node": 1,
+    "add_reverse": false,
+    "pyg_add_self_loops": false
+  },
+  "controller_boundary": {
+    "training_gradient": false,
+    "input": ["local_log_ratio_forecast", "graph_log_ratio_forecast", "current_surge"],
+    "output": ["delta_requested", "delta_applied", "final_surge", "status", "reason"],
+    "execution_modes": ["demo", "shadow"],
+    "deployment_eligible": false
+  }
+}

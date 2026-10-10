@@ -3,3 +3,6 @@ cache/
 data/
 __pycache__/
 .venv/
+.pytest_tmp/
+mlflow/
+.pytest_cache/
