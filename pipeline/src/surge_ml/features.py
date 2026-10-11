@@ -91,7 +91,7 @@ class Variant:
     @property
     def trainable(self) -> bool:
         """Model torch có checkpoint (GRU hoặc GRU+GATv2)."""
-        return self.family == "gru"
+        return self.family in ("gru", "flow_gru")
 
     @property
     def primary_head(self) -> str:
@@ -125,4 +125,9 @@ VARIANTS = {v.name: v for v in [
     Variant("gru_gatv2_40", "local37", "b", True, ("adj", "od")),
     Variant("gru_gatv2_40_no_od", "local37", "b", True, ("adj",)),
     Variant("gru_gatv2_40_no_adj", "local37", "b", True, ("od",)),
+    # V3 experiment: identical Flow-STGATv2 capacity across relation ablations.
+    Variant("flow_stgatv2_full", "local37", "b", True, ("adj", "od"), family="flow_gru"),
+    Variant("flow_stgatv2_adj", "local37", "b", True, ("adj",), family="flow_gru"),
+    Variant("flow_stgatv2_od", "local37", "b", True, ("od",), family="flow_gru"),
+    Variant("flow_stgatv2_self", "local37", "b", True, ("self",), family="flow_gru"),
 ]}

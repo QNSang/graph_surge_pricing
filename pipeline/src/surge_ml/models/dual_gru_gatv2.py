@@ -60,9 +60,18 @@ class SurgeNet(nn.Module):
         return out
 
 
-def build_model(variant: Variant, cfg: ModelConfig) -> SurgeNet:
+def build_model(variant: Variant, cfg: ModelConfig) -> nn.Module:
+    if variant.family == "flow_gru":
+        from surge_ml.models.flow_stgatv2 import FlowSTGATv2
+        return FlowSTGATv2(len(COLUMNS[variant.columns]), cfg)
     return SurgeNet(len(COLUMNS[variant.columns]), variant.graph, cfg)
 
 
-def forward_batch(model: SurgeNet, batch: dict) -> dict[str, torch.Tensor]:
-    return model(batch["x_local"], batch["b"], batch.get("x_neighbor"), batch.get("edge_index"), batch.get("edge_attr"))
+def forward_batch(model: nn.Module, batch: dict) -> dict[str, torch.Tensor]:
+    inputs = (batch["x_local"], batch["b"], batch.get("x_neighbor"),
+              batch.get("edge_index"), batch.get("edge_attr"))
+    if "edge_history" in batch:
+        return model(*inputs, edge_history=batch["edge_history"],
+                     edge_history_mask=batch["edge_history_mask"],
+                     edge_relation=batch["edge_relation"])
+    return model(*inputs)

@@ -256,6 +256,7 @@ def apply_overrides(cfg: Config, *, smoke: bool = False, epochs: int | None = No
 _EVAL = {"data": True, "loss": {"smooth_l1_beta"}, "train": {"eval_batch_size", "limit_batches"}}
 HASHED = {
     "gru": {"data": True, "model": True, "loss": True, "train": True},
+    "flow_gru": {"data": True, "model": True, "loss": True, "train": True},
     "lgbm": {**_EVAL, "lgbm": True},
     "persistence": _EVAL,
     "seasonal": _EVAL,

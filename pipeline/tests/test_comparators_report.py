@@ -16,10 +16,13 @@ def test_variant_groups():
                 "gru_pointwise40": ("network", "handcrafted"), "lgbm40": ("network", "handcrafted"),
                 "gru_gatv2_40": ("network", "gnn"), "gru_gatv2_40_no_od": ("network", "gnn"),
                 "gru_gatv2_40_no_adj": ("network", "gnn")}
+    expected.update({name: ("network", "gnn") for name in (
+        "flow_stgatv2_full", "flow_stgatv2_adj", "flow_stgatv2_od", "flow_stgatv2_self")})
     assert {n: (v.group, v.kind) for n, v in VARIANTS.items()} == expected
     assert [n for n, v in VARIANTS.items() if v.trainable] == [
         "gru_local37", "gru_pointwise40", "gru_strict32", "gru_gatv2_40", "gru_gatv2_40_no_od",
-        "gru_gatv2_40_no_adj"]
+        "gru_gatv2_40_no_adj", "flow_stgatv2_full", "flow_stgatv2_adj",
+        "flow_stgatv2_od", "flow_stgatv2_self"]
 
 
 def test_seasonal_naive_uses_yesterday_and_falls_back(data):

@@ -91,4 +91,5 @@ ADAPTERS: dict[str, Adapter] = {
     "seasonal": BaselineAdapter(),
     "lgbm": LgbmAdapter(),
     "gru": GruAdapter(),
+    "flow_gru": GruAdapter(),
 }
