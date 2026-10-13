@@ -355,9 +355,16 @@ def export_features(out,cfg,geo,tables,log=print):
     sk=sample_frame.k.to_numpy(np.int64)
     edge_payload=np.load(training/'edge_attr.npy',mmap_mode='r',allow_pickle=False)
     split_safe=all(np.all(split[sk]==split[sk+offset]) for offset in [-3,-2,-1,0,1,2,3])
+    from .dataset_v2 import ds_ratio_summary, DS_RATIO_MAX
+    ds_tail=ds_ratio_summary(x[:,:,I['demand_5m']],x[:,:,I['effective_supply_t']])
     tests.update({'node_dim_40':x.shape[-1]==40,'edge_dim_10':edge_payload.shape==(total_edges,10),
                   'finite_node_tensor':bool(np.isfinite(x).all()),
-                  'exact_30_day_grid':cfg.n_days==30 and nt==8640,
+                  'exact_day_grid':nt==cfg.n_days*288,
+                  # The D/S cap is only a guarantee when the booking gate is on (theta > 0);
+                  # unbounded configs report the tail in ds_effective_ratio instead of failing.
+                  f'ds_effective_ratio_le_{DS_RATIO_MAX:g}':(ds_tail['ds_eff_gt_max_count']==0
+                      or not cfg.demand.get('no_cars_filter',{}).get('theta',0.0)>0),
+                  'ds_effective_ratio_finite':ds_tail['ds_eff_finite'],
                   'split_samples_within_bounds':bool(split_safe),
                   'all_training_sample_targets_valid':bool(mask[sk].all()),
                   'finite_sample_targets':bool(np.isfinite(target[sk]).all()),
@@ -382,4 +389,5 @@ def export_features(out,cfg,geo,tables,log=print):
     return {'feature_version':VERSION,'node_dim':40,'edge_dim':10,'tensor_shape':list(x.shape),
         'edge_rows':total_edges,'sample_counts':pd.DataFrame(samples).groupby('split').size().to_dict(),
         'feature_integrity_pass':all(tests.values()),'dataset_fingerprint':fingerprint,
-        'feature_contract':'feature_contract.json','epsilon':1.0,'horizons_minutes':[5,10,15]}
+        'feature_contract':'feature_contract.json','epsilon':1.0,'horizons_minutes':[5,10,15],
+        'ds_effective_ratio':ds_tail}

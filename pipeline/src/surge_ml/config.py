@@ -92,19 +92,6 @@ class TrainConfig(_Base):
     limit_batches: int | None = None  # set by --smoke
 
 
-class LgbmConfig(_Base):
-    """LightGBM đối chứng (models/lgbm.py). Cố định: objective regression_l2, subsample_freq 1."""
-
-    learning_rate: float = 0.05
-    num_leaves: int = 63
-    min_child_samples: int = 50
-    subsample: float = 0.8
-    colsample_bytree: float = 0.8
-    n_estimators: int = 1000
-    early_stopping: int = 30
-    smoke_estimators: int = 20  # used instead of n_estimators under --smoke
-
-
 class TrackingConfig(_Base):
     enabled: bool = True
     experiment: str = "graph_surge_pricing"  # prefix; the CLI appends _<YYYYmmdd-HHMMSS> per invocation
@@ -168,7 +155,6 @@ class Config(_Base):
     train: TrainConfig = TrainConfig()
     tracking: TrackingConfig = TrackingConfig()
     controller: ControllerConfig = ControllerConfig()
-    lgbm: LgbmConfig = LgbmConfig()
     runs_root: Path
     # Per-variant tuning: {variant: {section: {key: value}}}, merged over the shared sections above.
     overrides: dict[str, dict[str, dict]] = {}
@@ -204,7 +190,7 @@ class Config(_Base):
         return Config.model_validate(d)
 
 
-OVERRIDABLE = ("model", "loss", "train", "lgbm")
+OVERRIDABLE = ("model", "loss", "train")
 
 
 def _source_from_current(current: Path, dataset_id: str) -> Path:
@@ -256,8 +242,6 @@ def apply_overrides(cfg: Config, *, smoke: bool = False, epochs: int | None = No
 _EVAL = {"data": True, "loss": {"smooth_l1_beta"}, "train": {"eval_batch_size", "limit_batches"}}
 HASHED = {
     "gru": {"data": True, "model": True, "loss": True, "train": True},
-    "flow_gru": {"data": True, "model": True, "loss": True, "train": True},
-    "lgbm": {**_EVAL, "lgbm": True},
     "persistence": _EVAL,
     "seasonal": _EVAL,
 }
@@ -272,7 +256,7 @@ def config_sha256(cfg: Config, variant: str | None = None) -> str:
     else:
         d = cfg.for_variant(variant).model_dump(mode="json", include=HASHED[VARIANTS[variant].family],
                                                 exclude={"train": {"epochs"}})
-    # Default window/horizon are left out so studies made before these keys existed keep their hash.
+    # Defaults of keys added later are left out so studies made before these keys existed keep their hash.
     for key, default in (("window_steps", WINDOW), ("horizon_steps", HORIZON)):
         if d["data"].get(key) == default:
             d["data"].pop(key)

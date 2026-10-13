@@ -57,24 +57,13 @@
   ],
   "feature_views": {
     "local37": {
-      "model_variant": "gru_local37",
+      "model_variant": "gru_gatv2_40",
       "exclude_indices": [35, 36, 37],
       "description": "Pointwise/local view; includes observed inbound at the same hex."
     },
     "neighbor3": {
       "indices": [35, 36, 37],
       "description": "Neighbor aggregates routed only to the graph branch."
-    },
-    "pointwise40": {
-      "model_variant": "gru_pointwise40",
-      "indices": "0..39",
-      "description": "All node features without graph message passing."
-    },
-    "strict32": {
-      "model_variant": "gru_strict32",
-      "base": "local37",
-      "exclude_indices": [29, 30, 31, 32, 33],
-      "persistence_bypass": "log((D+1)/(idle_supply+1))"
     }
   },
   "edge_features": [

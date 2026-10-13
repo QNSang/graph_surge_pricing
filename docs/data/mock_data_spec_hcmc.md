@@ -1,7 +1,8 @@
 # Mock Data Spec v3: Temporal OD Graph Surge
 
 **Thay thế:** v1, v2
-**Phạm vi:** 61 hex H3 res 7 × 61 ngày, một thành phố, một loại xe
+**Phạm vi:** 61 hex H3 res 7 × 90 ngày chính (+ 1 ngày burn-in), một thành phố, một loại xe
+**Bản phát hành hiện hành:** V2, case `bounded_tail`, 90 ngày từ 2026-01-05, D/S_eff ≤ 15 (mục 13)
 **Thay đổi chính so với v2:** chốt toàn bộ tham số còn thiếu bằng giá trị giả định hợp lý; thêm biến thiên ngẫu nhiên theo ngày và theo hex; tín hiệu OD biến động theo ngày để không học thuộc được theo giờ; thêm bộ đối chứng xáo trộn OD; thêm mục cơ sở lựa chọn và chỉ tiêu độ chân thực.
 
 ---
@@ -466,3 +467,11 @@ mock_data/
 - Hành vi khách và tài xế là luật đơn giản; không có cạnh tranh giữa các nền tảng, tài xế chạy nhiều app, hay khuyến mãi.
 - Hex res 7 lớn, nên D/S trong hex mượt hơn thực tế ở res 8–9.
 - Định nghĩa `demand` và `supply` là lý tưởng; dữ liệu thật cần đối chiếu (unique users, đơn lặp, tài xế rảnh nhưng không nhận chuyến).
+
+## 13. Bản phát hành V2 (90 ngày, `bounded_tail`)
+
+- **Phạm vi:** 61 hex (H3 res 7, ring 4), 90 ngày chính từ 2026-01-05 đến 2026-04-04, cộng 1 ngày burn-in chỉ giữ trong `context/`. Snapshot cuối là 2026-04-05 00:00. Mỗi bảng snapshot có 25.920 mốc × 61 hex = 1.581.120 dòng.
+- **Sinh dữ liệu:** `tools/mock_v3/run.py --mode release --days 90 --seed 42`. Ngày mưa là `round(days/6)` = 15, sự kiện venue là `round(days/8)` = 11. Chia 70/15/15 ngày (63/13/14) chỉ dùng để rải mưa và sự kiện; split của model do DS quyết định.
+- **D/S_eff:** = demand_5m / effective_supply, tính trên dòng S_eff > 0 (S_eff làm tròn 4 chữ số). Giá trị nằm trong [0, 15], p50 ≈ 0,2, p90 ≈ 1,4, p99 ≈ 4–5, tỷ lệ > 10 khoảng 0,005%. Giới hạn đạt được bằng mô phỏng, không clip. Dòng S_eff = 0 và D > 0 (khoảng 2%) được giữ và báo cáo riêng.
+- **Bộ lọc "hết xe"** (`demand.no_cars_filter`, `theta` = 12, `beta` = 3, `floor` = 0,2): với mỗi ý định đặt xe, supply sống tại hex là effective supply của snapshot sắp tới, tính theo phút, bỏ tài xế sắp hết ca và trừ đơn đang chờ của chính hex. Áp lực = (yêu cầu trong cửa sổ + đã giữ + 1) / max(supply sống − 1, floor). Khi áp lực vượt `theta`, đơn được đặt với xác suất exp(−beta × (áp lực − theta)). Cùng phép thử này chặn láng giềng điều tài xế, cắt đội xe và reposition khi hex không còn xe để nhả.
+- **Kiểm tra:** bản phát hành dừng trước khi lưu nếu có dòng D/S_eff > 15. Manifest ghi `ds_effective_ratio` và các check `exact_day_grid`, `ds_effective_ratio_le_15`, `ds_effective_ratio_finite`.

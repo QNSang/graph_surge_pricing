@@ -9,7 +9,7 @@ from surge_ml.data.validation import check, check_contract
 from surge_ml.errors import SurgeError
 from surge_ml.features import END_GAP, SNAPSHOTS_PER_DAY, WARMUP, WINDOW, Splits, split_bounds
 
-DERIVE_VERSION = "w4_logratio_v1"
+DERIVE_VERSION = "w4_logratio_v2"  # v2: scaler fit on the train split only
 
 
 @dataclass

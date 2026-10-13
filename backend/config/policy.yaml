@@ -1,0 +1,26 @@
+# Surge policy for DEMO/REPLAY. Values are illustrative until TD-08 is approved.
+policy_version: w4_pressure_revision_demo_v1
+execution_mode: DEMO
+replay_mode: DEMO_REPLAY
+region_id: hcmc
+region_label: Ho Chi Minh City (synthetic)
+surge_limits:
+  min: "1.00"
+  max: "3.00"
+  max_deviation: "0.40"
+  step: "0.01"
+  precision: 2
+override_requires_reason: true
+allow_hold_override: true   # TD-06, pending confirmation
+batch_plan_ttl_minutes: 5
+# Mock provider controller parameters (mirror pipeline/configs/train.yaml `controller:`).
+mock_controller:
+  reference_q: 1.2
+  q_min: 1.0e-6
+  pressure_dead_zone: 0.10
+  revision_dead_zone: 0.05
+  pressure_gain: 0.60
+  revision_gain: 0.40
+  max_requested_delta: 0.40
+  surge_min: 1.0
+  surge_max: 3.0

@@ -1,4 +1,5 @@
-"""SurgeNet: GRU local dùng chung + head local dạng residual; tuỳ chọn thêm encoder hàng xóm, Fuse, GATv2 và head graph. y_hat = b + g(.)."""
+"""SurgeNet (V1.2, `gru_gatv2_40`): GRU local dùng chung + head local dạng residual; tuỳ chọn thêm encoder hàng xóm,
+Fuse, GATv2 và head graph. Cả hai head dự báo cùng target log((D+1)/(S_eff+1)) tại t+h: y_hat = b + g(.)."""
 
 import torch
 from torch import nn
@@ -28,7 +29,17 @@ class GatBlock(nn.Module):
         return self.norm(h + self.drop(nn.functional.elu(self.out(self.conv(h, edge_index, edge_attr)))))
 
 
+def per_node(x: torch.Tensor) -> torch.Tensor:
+    """[B, W, N, F] -> [B*N, W, F]: mỗi hex là một chuỗi cho GRU dùng chung."""
+    b, w, n, f = x.shape
+    return x.permute(0, 2, 1, 3).reshape(b * n, w, f)
+
+
 class SurgeNet(nn.Module):
+    """Head local: y_L = b + g_L(GRU_L(Local37)). Head graph (nếu use_graph):
+    y_G = b + g_G(GATv2^2(LayerNorm(W_F [GRU_L(Local37) || GRU_N(Neighbor3)]), G_t)).
+    Head local không bao giờ thấy Neighbor3, GATv2 hay head graph."""
+
     def __init__(self, n_local: int, use_graph: bool, cfg: ModelConfig):
         super().__init__()
         d = cfg.gru_hidden
@@ -41,18 +52,13 @@ class SurgeNet(nn.Module):
             self.blocks = nn.ModuleList(GatBlock(d, cfg.gat_heads, cfg.dropout) for _ in range(cfg.gat_layers))
             self.head_graph = _head(d, cfg.head_hidden, cfg.dropout)
 
-    @staticmethod
-    def _per_node(x: torch.Tensor) -> torch.Tensor:
-        b, w, n, f = x.shape
-        return x.permute(0, 2, 1, 3).reshape(b * n, w, f)
-
     def forward(self, x_local, b, x_neighbor=None, edge_index=None, edge_attr=None) -> dict[str, torch.Tensor]:
         """x_local [B, W, N, F] (đã bỏ cột hàng xóm), b [B, N] -> {"local", "graph"?} mỗi cái [B, N]."""
         shape = b.shape
-        h = self.encoder(self._per_node(x_local))[1][-1]  # [B*N, d]
+        h = self.encoder(per_node(x_local))[1][-1]  # [B*N, d]
         out = {"local": b + self.head_local(h).view(shape)}
         if self.use_graph:
-            n = self.neighbor(self._per_node(x_neighbor))[1][-1]
+            n = self.neighbor(per_node(x_neighbor))[1][-1]
             z = self.fuse(torch.cat([h, n], dim=-1))
             for block in self.blocks:
                 z = block(z, edge_index, edge_attr)
@@ -61,17 +67,9 @@ class SurgeNet(nn.Module):
 
 
 def build_model(variant: Variant, cfg: ModelConfig) -> nn.Module:
-    if variant.family == "flow_gru":
-        from surge_ml.models.flow_stgatv2 import FlowSTGATv2
-        return FlowSTGATv2(len(COLUMNS[variant.columns]), cfg)
     return SurgeNet(len(COLUMNS[variant.columns]), variant.graph, cfg)
 
 
 def forward_batch(model: nn.Module, batch: dict) -> dict[str, torch.Tensor]:
-    inputs = (batch["x_local"], batch["b"], batch.get("x_neighbor"),
-              batch.get("edge_index"), batch.get("edge_attr"))
-    if "edge_history" in batch:
-        return model(*inputs, edge_history=batch["edge_history"],
-                     edge_history_mask=batch["edge_history_mask"],
-                     edge_relation=batch["edge_relation"])
-    return model(*inputs)
+    return model(batch["x_local"], batch["b"], batch.get("x_neighbor"), batch.get("edge_index"),
+                 batch.get("edge_attr"))

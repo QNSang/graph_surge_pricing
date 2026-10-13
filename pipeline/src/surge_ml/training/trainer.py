@@ -12,7 +12,7 @@ from surge_ml.data.dataset import DerivedData
 from surge_ml.errors import SurgeError
 from surge_ml.evaluation.metrics import evaluate_predictions, flatten
 from surge_ml.features import Variant, candidates
-from surge_ml.models.dual_gru_gatv2 import SurgeNet, forward_batch
+from surge_ml.models.dual_gru_gatv2 import forward_batch
 from surge_ml.training import checkpoint
 from surge_ml.training.losses import dual_loss, target_mask
 
@@ -29,7 +29,7 @@ def _chunks(ks: np.ndarray, size: int, limit: int | None) -> list[np.ndarray]:
 
 
 @torch.no_grad()
-def predict(model: SurgeNet, data: DerivedData, variant: Variant, ks: np.ndarray, batch_size: int,
+def predict(model: torch.nn.Module, data: DerivedData, variant: Variant, ks: np.ndarray, batch_size: int,
             device: torch.device, limit: int | None = None) -> tuple[dict[str, np.ndarray], np.ndarray]:
     """Trả dự đoán mỗi head [K, N] và các cutoff thực sự được đánh giá."""
     model.eval()
@@ -50,7 +50,7 @@ def evaluate(model, data, variant, split, cfg: Config, device) -> dict:
 
 
 class Trainer:
-    def __init__(self, model: SurgeNet, data: DerivedData, variant: Variant, cfg: Config, trial_dir: Path,
+    def __init__(self, model: torch.nn.Module, data: DerivedData, variant: Variant, cfg: Config, trial_dir: Path,
                  config_sha: str, seed: int, tracker=None):
         self.model, self.data, self.variant, self.cfg = model, data, variant, cfg
         self.dir, self.sha, self.tracker = trial_dir, config_sha, tracker
@@ -97,9 +97,9 @@ class Trainer:
         ks = self.shuffle.permutation(self.data.candidates("train"))
         for chunk in _chunks(ks, t.batch_size, t.limit_batches):
             batch = make_batch(self.data, chunk, self.variant, self.device)
-            out = forward_batch(self.model, batch)
-            res = dual_loss(out, batch["y"], target_mask(batch["y"], batch["b"]),
-                            self.cfg.loss.smooth_l1_beta, self.cfg.loss.lambda_local)
+            y, loss_cfg = batch["y"], self.cfg.loss
+            res = dual_loss(forward_batch(self.model, batch), y, target_mask(y, batch["b"]),
+                            loss_cfg.smooth_l1_beta, loss_cfg.lambda_local)
             if res is None:
                 self.state["skipped_batches"] += 1
                 continue

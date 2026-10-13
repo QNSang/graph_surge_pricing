@@ -13,7 +13,7 @@ import pyarrow.parquet as pq
 
 from surge_ml.config import Config
 from surge_ml.data.resolve import DERIVE_VERSION, Source, derived_key, load_source
-from surge_ml.data.scaler import fit_zscore
+from surge_ml.data.scaler import fit_scalers
 from surge_ml.data.target import build_targets
 from surge_ml.data.validation import check, check_edges, check_grid, check_nodes
 from surge_ml.features import candidates
@@ -96,9 +96,8 @@ def build(src: Source, out: Path, std_floor: float) -> None:
     grid, x = _read_nodes(src, hexes, tmp)
     edges = _read_edges(src, hexes, grid, tmp)
     y, b, b32 = build_targets(x)
-    train_end = src.splits["train"][1]
-    node_mean, node_std = fit_zscore(x[:train_end], std_floor)
-    edge_mean, edge_std = fit_zscore(edges["edge_attr"][: edges["edge_ptr"][train_end]], std_floor)
+    train = tuple(src.splits["train"])
+    scalers = fit_scalers(x, edges["edge_attr"], edges["edge_ptr"], train, std_floor)
     shape = {"T": int(x.shape[0]), "N": int(x.shape[1]), "F": int(x.shape[2]), "E": int(len(edges["edge_src"]))}
 
     for name, arr in {"y": y, "b": b, "b32": b32, "edge_ptr": edges["edge_ptr"]}.items():
@@ -106,7 +105,7 @@ def build(src: Source, out: Path, std_floor: float) -> None:
     for arr in (x, edges["edge_src"], edges["edge_dst"], edges["edge_attr"]):
         arr.flush()
     del x, edges, arr  # close the memmaps; Windows cannot rename a directory with open files
-    np.savez(tmp / "scalers.npz", node_mean=node_mean, node_std=node_std, edge_mean=edge_mean, edge_std=edge_std)
+    np.savez(tmp / "scalers.npz", **scalers)
     manifest = {
         "derive_version": DERIVE_VERSION,
         "dataset_id": src.manifest["dataset_id"],
@@ -121,6 +120,7 @@ def build(src: Source, out: Path, std_floor: float) -> None:
         "edge_features": src.contract["edge_features"],
         "hex_ids": src.contract["hex_ids"],
         "std_floor": std_floor,
+        "scaler_fit_bounds": list(train),
     }
     (tmp / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     os.replace(tmp, out)

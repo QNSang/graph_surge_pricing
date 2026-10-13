@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import numpy as np
 import torch
 
@@ -24,8 +26,9 @@ def test_batch_offsets_and_self_loops(data):
 
 def test_relation_ablations_filter_rows(data):
     ks = np.array([500])
-    no_od = make_batch(data, ks, VARIANTS["gru_gatv2_40_no_od"])["edge_index"].shape[1]
-    no_adj = make_batch(data, ks, VARIANTS["gru_gatv2_40_no_adj"])["edge_index"].shape[1]
+    base = VARIANTS["gru_gatv2_40"]
+    no_od = make_batch(data, ks, replace(base, relations=("adj",)))["edge_index"].shape[1]
+    no_adj = make_batch(data, ks, replace(base, relations=("od",)))["edge_index"].shape[1]
     assert no_od == 4 + data.n_nodes and no_adj == 1 + data.n_nodes
 
 
@@ -41,8 +44,9 @@ def test_neighbor_columns_do_not_reach_local_head(data):
 
 
 def test_outputs_can_be_negative(data):
-    model = build_model(VARIANTS["gru_local37"], SMALL).eval()
-    batch = make_batch(data, np.array([100]), VARIANTS["gru_local37"])
+    local_only = replace(VARIANTS["gru_gatv2_40"], graph=False, relations=())
+    model = build_model(local_only, SMALL).eval()
+    batch = make_batch(data, np.array([100]), local_only)
     batch["b"] = torch.full_like(batch["b"], -10.0)
     assert (forward_batch(model, batch)["local"] < 0).all()
 

@@ -12,3 +12,10 @@ artifacts/
 .jupyter/
 .jupyter_ystore.db
 anaconda_projects/
+
+# secrets, tool caches
+backend/.env
+.env
+.vite/
+node_modules/
+.gitnexus/

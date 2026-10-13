@@ -1,0 +1,5 @@
+# Server template. Resolve and record base-image digest at implementation milestoneM1.
+ARG MLFLOW_VERSION=3.16.1
+FROM ghcr.io/mlflow/mlflow:v${MLFLOW_VERSION}
+ARG PSYCOPG2_VERSION
+RUN test -n "$PSYCOPG2_VERSION" && pip install --no-cache-dir "psycopg2-binary==${PSYCOPG2_VERSION}"

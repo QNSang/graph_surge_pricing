@@ -10,7 +10,6 @@ dependencies = [
     "pandas",
     "pyarrow",
     "scipy",
-    "lightgbm",
     "pyyaml",
     "pydantic>=2",
     "mlflow==3.16.1",

@@ -1,4 +1,4 @@
-"""Observed data and integrity checks for the versioned 30-day training release.
+"""Observed data and integrity checks for the versioned N-day training release.
 
 Burn-in is retained as context only. Lifecycle fields are independently censored;
 unknown dropoff is NOT interpreted as an unpicked-up trip. Private audits never
@@ -10,6 +10,32 @@ import pandas as pd
 from . import kernel as K
 
 EVENTS = ['accepted_ts', 'pickup_ts', 'dropoff_ts', 'cancel_ts']
+# Release bound on raw D/S_eff over rows with positive effective supply.
+DS_RATIO_MAX = 15.0
+
+
+def ds_ratio_summary(demand, effective_supply):
+    """Raw D/S_eff tail summary; S_eff=0 rows are undefined and reported separately.
+
+    S_eff is rounded to 4 decimals, as in inspect_distribution and refresh_clean,
+    so fractional arrival weights do not create spurious tiny denominators.
+    """
+    demand = np.asarray(demand, dtype=float).ravel()
+    seff = np.round(np.asarray(effective_supply, dtype=float).ravel(), 4)
+    positive = seff > 0
+    ratio = demand[positive] / seff[positive]
+    q = np.quantile(ratio, [.5, .9, .99, .999]) if len(ratio) else [np.nan] * 4
+    return {
+        'ds_eff_p50': float(q[0]), 'ds_eff_p90': float(q[1]),
+        'ds_eff_p99': float(q[2]), 'ds_eff_p999': float(q[3]),
+        'ds_eff_max': float(ratio.max()) if len(ratio) else 0.0,
+        'ds_eff_gt10_share': float((ratio > 10).mean()) if len(ratio) else 0.0,
+        'ds_eff_gt_max_count': int((ratio > DS_RATIO_MAX + 1e-9).sum()),
+        'ds_eff_finite': bool(np.isfinite(ratio).all()),
+        'zero_effective_supply_share': float((~positive).mean()),
+        'positive_demand_zero_effective_share': float(((~positive) & (demand > 0)).mean()),
+        'ds_eff_definition': f'demand_5m/effective_supply_t over rows with S_eff>0 (rounded 4dp); bound {DS_RATIO_MAX}',
+    }
 
 
 def observed_tables(cfg, geo, exo, state):
@@ -103,9 +129,34 @@ def validate_raw(tables, geo):
     return {k: bool(v) for k, v in checks.items()}
 
 
+def demand_supply_frame(tables, geo):
+    """Compare one 5-minute request flow with idle and the declared effective supply.
+
+    This uses build_nodes' arrival definition and burn-in as computation context.
+    Returned rows cover the main period only.
+    City aggregates sum physical counts before comparing; a mean of local ratios
+    is not a city ratio. A deficit is a pressure proxy, not a service failure.
+    """
+    from .feature_v2 import ns, indexed_orders, inbound_counts
+    snap = tables['snap']
+    times = pd.DatetimeIndex(snap.ts.unique()).sort_values()
+    index = pd.MultiIndex.from_product([times, geo.cells], names=['ts', 'hex_id'])
+    frame = snap.set_index(['ts', 'hex_id']).reindex(index).reset_index()
+    if frame[['demand', 'supply']].isna().any().any():
+        raise ValueError('Incomplete grid in demand/supply diagnostics')
+    arrivals = inbound_counts(ns(times), indexed_orders(tables['orders'], geo.cells), geo.n)
+    frame['effective_supply'] = (frame.supply.to_numpy(dtype=float) +
+        arrivals[0].ravel() + .5 * arrivals[1].ravel() + .2 * arrivals[2].ravel())
+    frame = frame.loc[frame.ts > tables['start']].copy()
+    frame['demand_gt_idle'] = frame.demand > frame.supply
+    frame['demand_gt_effective'] = frame.demand > frame.effective_supply + 1e-6
+    frame['effective_gt_demand'] = frame.effective_supply > frame.demand + 1e-6
+    return frame
+
+
 def basic_metrics(tables, geo):
     o = tables['orders'].loc[tables['orders'].created_ts > tables['start']].copy()
-    s = tables['snap'].loc[tables['snap'].ts > tables['start']].copy()
+    s = demand_supply_frame(tables, geo)
     st = tables['stats'].loc[tables['stats'].ts > tables['start']]
     # Exclude the final two hours only for completion calibration, not from export.
     mature = o.created_ts <= tables['end'] - pd.Timedelta(hours=2)
@@ -124,6 +175,10 @@ def basic_metrics(tables, geo):
     s['hour'] = (s.ts - pd.Timedelta(minutes=5)).dt.hour
     g = s.loc[(s.ts - pd.Timedelta(minutes=5)).dt.dayofweek < 5].groupby(['hex_id', 'hour']).demand.agg(['mean', 'var'])
     g = g[g['mean'] >= 1]
+    city = s.groupby('ts')[['demand', 'supply', 'effective_supply']].sum()
+    city_short = city.demand > city.effective_supply + 1e-6
+    city_idle_short = city.demand > city.supply
+    ratio = city.demand / city.effective_supply.clip(lower=1e-6)
     metrics = {
         'n_orders': len(o), 'n_snapshot_rows': len(s),
         'completion_rate_mature': float(done[mature].mean()),
@@ -139,13 +194,34 @@ def basic_metrics(tables, geo):
         'demand_mean': float(s.demand.mean()), 'idle_mean': float(s.supply.mean()),
         'zero_demand_share': float(s.demand.eq(0).mean()),
         'positive_demand_zero_idle_share': float((s.demand.gt(0) & s.supply.eq(0)).mean()),
-        'demand_gt_idle_share': float(s.demand.gt(s.supply).mean()),
+        'demand_gt_idle_share': float(s.demand_gt_idle.mean()),
+        'effective_supply_mean': float(s.effective_supply.mean()),
+        'demand_gt_effective_share': float(s.demand_gt_effective.mean()),
+        'effective_gt_demand_share': float(s.effective_gt_demand.mean()),
+        'city_demand_gt_idle_share': float(city_idle_short.mean()),
+        'city_demand_gt_effective_share': float(city_short.mean()),
+        'city_shortage_snapshot_count': int(city_short.sum()),
+        'city_snapshot_count': len(city),
+        'city_ds_ratio_p50': float(ratio.median()),
+        'city_ds_ratio_p95': float(ratio.quantile(.95)),
+        'city_ds_ratio_max': float(ratio.max()),
+        'days_with_city_effective_shortage': int(
+            (city.index[city_short] - pd.Timedelta(minutes=5)).normalize().nunique()),
+        'supply_comparison_definition': 'D=requests in (t-5m,t]; idle=drivers free at t; effective=idle+arriving_0_5+0.5*arriving_5_10+0.2*arriving_10_15',
+
         'demand_vmr': float((g['var'] / g['mean']).median()),
         'est_error_median': float(estimate_error.median()),
         'open_at_cutoff': int((o.dropoff_ts.isna() & o.cancel_ts.isna()).sum()),
         'utilization_definition': 'mean of five end-of-minute state samples per window; not exact driver-minutes',
+        **ds_ratio_summary(s.demand, s.effective_supply),
     }
     by_zone = s.groupby('zone').agg(demand_mean=('demand', 'mean'), idle_mean=('supply', 'mean'), eta_sec_mean=('eta_sec', 'mean'), surge_mean=('surge_multiplier', 'mean'))
     by_zone['orders'] = o.groupby('zone').size()
+    by_zone['effective_supply_mean'] = s.groupby('zone').effective_supply.mean()
+    by_zone['demand_gt_effective_share'] = s.groupby('zone').demand_gt_effective.mean()
     by_hour = s.groupby('hour').agg(demand_mean=('demand', 'mean'), idle_mean=('supply', 'mean'), eta_sec_mean=('eta_sec', 'mean'))
+    by_hour['effective_supply_mean'] = s.groupby('hour').effective_supply.mean()
+    by_hour['demand_gt_effective_share'] = s.groupby('hour').demand_gt_effective.mean()
+    city_hour = (city.index - pd.Timedelta(minutes=5)).hour
+    by_hour['city_demand_gt_effective_share'] = city_short.groupby(city_hour).mean()
     return metrics, by_zone, by_hour

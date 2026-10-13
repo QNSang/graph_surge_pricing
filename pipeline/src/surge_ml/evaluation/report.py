@@ -1,4 +1,4 @@
-"""Báo cáo so sánh chỉ trên val: nhóm baseline/local/network, đại diện từng nhóm, so sánh cặp và quyết định triển khai."""
+"""Báo cáo so sánh chỉ trên val: nhóm baseline/network, đại diện từng nhóm, so sánh cặp và quyết định triển khai."""
 
 import json
 
@@ -11,7 +11,7 @@ from surge_ml.features import VARIANTS
 from surge_ml.orchestration.runner import study_dir, trial_dir, write_json
 
 METRICS = ("mae_q", "rmse_q", "bias_q", "pair_acc", "spearman")
-GROUPS = ("baseline", "local", "network")
+GROUPS = ("baseline", "network")
 MIN_SEEDS = 3
 BLOCK = 12  # 1 hour of 5-min cutoffs per bootstrap block
 N_BOOT = 2000
@@ -29,7 +29,7 @@ def summarize(results: list[dict]) -> dict[str, dict]:
         row = rows.setdefault(variant.name, {"group": variant.group, "kind": variant.kind, "family": variant.family,
                                              "primary_head": r["primary_head"], "per_seed": {}})
         row["per_seed"][r["seed"]] = {**{m: r["val"][r["primary_head"]].get(m) for m in METRICS},
-                                      "n_params": r.get("n_params"), "n_trees": r.get("n_trees"),
+                                      "n_params": r.get("n_params"),
                                       "train_seconds": r.get("train_seconds")}
     for row in rows.values():
         seeds = row["per_seed"].values()
@@ -37,7 +37,6 @@ def summarize(results: list[dict]) -> dict[str, dict]:
         for m in (*METRICS, "train_seconds"):
             row[f"{m}_mean"], row[f"{m}_std"] = _mean_std([s[m] for s in seeds])
         row["n_params"] = next((s["n_params"] for s in seeds if s["n_params"] is not None), None)
-        row["n_trees"], _ = _mean_std([s["n_trees"] for s in seeds])
     return rows
 
 
@@ -103,15 +102,12 @@ def compare(cfg: Config, rows: dict[str, dict], question: str, a: str | None, b:
 
 
 def recommend(rows: dict[str, dict], comparisons: dict[str, dict]) -> dict:
-    floor, net, gnn = comparisons["local_vs_baseline"], comparisons["network_vs_local"], comparisons["gnn_vs_handcrafted"]
-    if net["decision"] == "challenger wins":
-        pick, why = net["challenger"], "network beats the best local model on every seed and the CI excludes 0"
-        if rows[pick]["kind"] == "gnn" and gnn["decision"] != "challenger wins" and gnn["reference"]:
-            pick, why = gnn["reference"], "network helps, but the GNN is not clearly better than handcrafted neighbors"
-    else:
-        pick, why = net["reference"], f"network is not clearly better ({net['decision']}); keep the simpler local model"
-    warning = None if floor["decision"] == "challenger wins" else f"best local vs baseline: {floor['decision']}"
-    return {"model": pick, "reason": why, "warning": warning}
+    gnn = comparisons["gnn_vs_baseline"]
+    if gnn["decision"] == "challenger wins":
+        return {"model": gnn["challenger"], "warning": None,
+                "reason": "the GNN beats the best baseline on every seed and the CI excludes 0"}
+    return {"model": gnn["reference"], "warning": None,
+            "reason": f"the GNN is not clearly better than the best baseline ({gnn['decision']}); keep the baseline"}
 
 
 def _fmt(mean, std=None, digits=4) -> str:
@@ -124,14 +120,13 @@ def to_markdown(report: dict) -> str:
     rows, reps = report["variants"], report["representatives"]
     lines = [f"# Eval report — {report['study_id']} (validation only)", "",
              "## A. All models by group", "",
-             "| Group | Kind | Model | MAE_q ↓ | RMSE_q ↓ | Bias_q | Pair acc ↑ | Spearman ↑ | Params / trees | Train s | Seeds |",
+             "| Group | Kind | Model | MAE_q ↓ | RMSE_q ↓ | Bias_q | Pair acc ↑ | Spearman ↑ | Params | Train s | Seeds |",
              "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|"]
     for group in GROUPS:
         for name in sorted((n for n, r in rows.items() if r["group"] == group), key=lambda n: rows[n]["mae_q_mean"]):
             r = rows[name]
             label = f"**{name}**" if reps.get(group) == name else name
-            size = f"{r['n_params']:,}" if r["n_params"] is not None else (
-                f"{r['n_trees']:.0f} trees" if r["n_trees"] is not None else "–")
+            size = f"{r['n_params']:,}" if r["n_params"] is not None else "–"
             lines.append(f"| {group} | {r['kind'] or '–'} | {label} | {_fmt(r['mae_q_mean'], r['mae_q_std'])} | "
                          f"{_fmt(r['rmse_q_mean'], r['rmse_q_std'])} | {_fmt(r['bias_q_mean'])} | "
                          f"{_fmt(r['pair_acc_mean'])} | {_fmt(r['spearman_mean'])} | {size} | "
@@ -162,14 +157,10 @@ def report(cfg: Config) -> dict:
         raise SurgeError("NO_TRIALS", f"no trial_result.json under {study_dir(cfg)}")
     rows = summarize(results)
     reps = {g: best(rows, group=g) for g in GROUPS}
-    reps.update({k: best(rows, group="network", kind=k) for k in ("handcrafted", "gnn")})
     rng = np.random.default_rng(0)
     comparisons = {
-        "local_vs_baseline": compare(cfg, rows, "Does the local model learn anything?", reps["baseline"],
-                                     reps["local"], rng),
-        "network_vs_local": compare(cfg, rows, "Does network information help?", reps["local"], reps["network"], rng),
-        "gnn_vs_handcrafted": compare(cfg, rows, "Is a GNN better than handcrafted neighbors?",
-                                      reps["handcrafted"], reps["gnn"], rng),
+        "gnn_vs_baseline": compare(cfg, rows, "Does the GNN beat the best baseline?", reps["baseline"],
+                                   reps["network"], rng),
     }
     out = {"study_id": cfg.study_id, "metric": "val/<primary>/mae_q", "variants": rows, "representatives": reps,
            "comparisons": comparisons, "recommendation": recommend(rows, comparisons)}

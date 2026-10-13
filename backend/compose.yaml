@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: surge
+      POSTGRES_PASSWORD: surge
+      POSTGRES_DB: surge
+    ports:
+      - "5433:5432"
+    volumes:
+      - surge_pg:/var/lib/postgresql/data
+      - ./scripts/init_test_db.sql:/docker-entrypoint-initdb.d/init_test_db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U surge -d surge"]
+      interval: 3s
+      retries: 20
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://surge:surge@db:5432/surge
+      DEMO_TOKENS: ${DEMO_TOKENS:-demo-operator-token:operator_01:OPERATOR,demo-viewer-token:viewer_01:VIEWER}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      REPO_ROOT: /repo
+    volumes:
+      - ../data:/repo/data:ro
+    ports:
+      - "8000:8000"
+    profiles: ["api"]
+
+volumes:
+  surge_pg:

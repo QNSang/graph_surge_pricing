@@ -1,0 +1,1341 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "study_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "base_config_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_contract_id": {
+      "const": "ds_log1p_h5_v1_2"
+    },
+    "seeds": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "max_concurrent_trials": {
+      "const": 1
+    },
+    "test_access_policy": {
+      "const": "frozen_final_eval_only"
+    },
+    "required_strong_comparators": {
+      "const": [
+        "gru_context29_h5_v1",
+        "gru_aggregate40_h5_v1",
+        "lgbm_aggregate40_h5_v1"
+      ]
+    },
+    "variants": {
+      "type": "array",
+      "minItems": 6,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "variant_id": {
+                "const": "persistence"
+              },
+              "kind": {
+                "const": "persistence"
+              },
+              "model_id": {
+                "const": "persistence_true_ds_h5_v1"
+              },
+              "node_profile": {
+                "const": "sidecars"
+              },
+              "graph_contract_id": {
+                "const": null
+              },
+              "feature_view_id": {
+                "const": "raw_d_seff_sidecars_v1"
+              },
+              "normalization_policy": {
+                "const": "identity_raw_v1"
+              },
+              "output_domain": {
+                "const": "exact_nonnegative_ratio_v1"
+              },
+              "primary_registry_eligible": {
+                "const": false
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "hyperparameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {},
+                "required": []
+              }
+            },
+            "required": [
+              "variant_id",
+              "kind",
+              "model_id",
+              "node_profile",
+              "graph_contract_id",
+              "feature_view_id",
+              "normalization_policy",
+              "output_domain",
+              "primary_registry_eligible",
+              "enabled",
+              "hyperparameters"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "variant_id": {
+                "const": "lgbm29"
+              },
+              "kind": {
+                "const": "lgbm"
+              },
+              "model_id": {
+                "const": "lgbm_context29_h5_v1"
+              },
+              "node_profile": {
+                "const": "context29"
+              },
+              "graph_contract_id": {
+                "const": null
+              },
+              "feature_view_id": {
+                "const": "current_context29_v1"
+              },
+              "normalization_policy": {
+                "const": "identity_raw_v1"
+              },
+              "output_domain": {
+                "const": "baseline_reject_negative_v1"
+              },
+              "primary_registry_eligible": {
+                "const": false
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "hyperparameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "n_estimators": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "learning_rate": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "num_leaves": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "min_child_samples": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "subsample": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1
+                  },
+                  "subsample_freq": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "colsample_bytree": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1
+                  },
+                  "early_stopping_rounds": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "objective": {
+                    "const": "regression_l2"
+                  }
+                },
+                "required": [
+                  "n_estimators",
+                  "learning_rate",
+                  "num_leaves",
+                  "min_child_samples",
+                  "subsample",
+                  "subsample_freq",
+                  "colsample_bytree",
+                  "early_stopping_rounds",
+                  "objective"
+                ]
+              }
+            },
+            "required": [
+              "variant_id",
+              "kind",
+              "model_id",
+              "node_profile",
+              "graph_contract_id",
+              "feature_view_id",
+              "normalization_policy",
+              "output_domain",
+              "primary_registry_eligible",
+              "enabled",
+              "hyperparameters"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "variant_id": {
+                "const": "lgbm40"
+              },
+              "kind": {
+                "const": "lgbm"
+              },
+              "model_id": {
+                "const": "lgbm_aggregate40_h5_v1"
+              },
+              "node_profile": {
+                "const": "aggregate40"
+              },
+              "graph_contract_id": {
+                "const": null
+              },
+              "feature_view_id": {
+                "const": "current_aggregate40_v1"
+              },
+              "normalization_policy": {
+                "const": "identity_raw_v1"
+              },
+              "output_domain": {
+                "const": "baseline_reject_negative_v1"
+              },
+              "primary_registry_eligible": {
+                "const": false
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "hyperparameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "n_estimators": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "learning_rate": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "num_leaves": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "min_child_samples": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "subsample": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1
+                  },
+                  "subsample_freq": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "colsample_bytree": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1
+                  },
+                  "early_stopping_rounds": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "objective": {
+                    "const": "regression_l2"
+                  }
+                },
+                "required": [
+                  "n_estimators",
+                  "learning_rate",
+                  "num_leaves",
+                  "min_child_samples",
+                  "subsample",
+                  "subsample_freq",
+                  "colsample_bytree",
+                  "early_stopping_rounds",
+                  "objective"
+                ]
+              }
+            },
+            "required": [
+              "variant_id",
+              "kind",
+              "model_id",
+              "node_profile",
+              "graph_contract_id",
+              "feature_view_id",
+              "normalization_policy",
+              "output_domain",
+              "primary_registry_eligible",
+              "enabled",
+              "hyperparameters"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "variant_id": {
+                "const": "gru29"
+              },
+              "kind": {
+                "const": "gru"
+              },
+              "model_id": {
+                "const": "gru_context29_h5_v1"
+              },
+              "node_profile": {
+                "const": "context29"
+              },
+              "graph_contract_id": {
+                "const": null
+              },
+              "feature_view_id": {
+                "const": "window12_context29_v1"
+              },
+              "normalization_policy": {
+                "const": "zscore_train_union_v1"
+              },
+              "output_domain": {
+                "const": "softplus_log1p_v1"
+              },
+              "primary_registry_eligible": {
+                "const": false
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "hyperparameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "gru_hidden": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "head_hidden": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "batch_size": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "eval_batch_size": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "epochs": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "patience": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "dropout": {
+                    "type": "number",
+                    "minimum": 0,
+                    "exclusiveMaximum": 1
+                  },
+                  "learning_rate": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "weight_decay": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "grad_clip_norm": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "smooth_l1_beta": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  }
+                },
+                "required": [
+                  "gru_hidden",
+                  "head_hidden",
+                  "batch_size",
+                  "eval_batch_size",
+                  "epochs",
+                  "patience",
+                  "dropout",
+                  "learning_rate",
+                  "weight_decay",
+                  "grad_clip_norm",
+                  "smooth_l1_beta"
+                ]
+              }
+            },
+            "required": [
+              "variant_id",
+              "kind",
+              "model_id",
+              "node_profile",
+              "graph_contract_id",
+              "feature_view_id",
+              "normalization_policy",
+              "output_domain",
+              "primary_registry_eligible",
+              "enabled",
+              "hyperparameters"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "variant_id": {
+                "const": "gru40"
+              },
+              "kind": {
+                "const": "gru"
+              },
+              "model_id": {
+                "const": "gru_aggregate40_h5_v1"
+              },
+              "node_profile": {
+                "const": "aggregate40"
+              },
+              "graph_contract_id": {
+                "const": null
+              },
+              "feature_view_id": {
+                "const": "window12_aggregate40_v1"
+              },
+              "normalization_policy": {
+                "const": "zscore_train_union_v1"
+              },
+              "output_domain": {
+                "const": "softplus_log1p_v1"
+              },
+              "primary_registry_eligible": {
+                "const": false
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "hyperparameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "gru_hidden": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "head_hidden": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "batch_size": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "eval_batch_size": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "epochs": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "patience": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "dropout": {
+                    "type": "number",
+                    "minimum": 0,
+                    "exclusiveMaximum": 1
+                  },
+                  "learning_rate": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "weight_decay": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "grad_clip_norm": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "smooth_l1_beta": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  }
+                },
+                "required": [
+                  "gru_hidden",
+                  "head_hidden",
+                  "batch_size",
+                  "eval_batch_size",
+                  "epochs",
+                  "patience",
+                  "dropout",
+                  "learning_rate",
+                  "weight_decay",
+                  "grad_clip_norm",
+                  "smooth_l1_beta"
+                ]
+              }
+            },
+            "required": [
+              "variant_id",
+              "kind",
+              "model_id",
+              "node_profile",
+              "graph_contract_id",
+              "feature_view_id",
+              "normalization_policy",
+              "output_domain",
+              "primary_registry_eligible",
+              "enabled",
+              "hyperparameters"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "variant_id": {
+                "const": "dual"
+              },
+              "kind": {
+                "const": "dual"
+              },
+              "model_id": {
+                "const": "dual_gru_gatv2_h5_v1_2"
+              },
+              "node_profile": {
+                "const": "context29"
+              },
+              "graph_contract_id": {
+                "const": "directed_relations_self_v1"
+              },
+              "feature_view_id": {
+                "const": "window12_context29_v1"
+              },
+              "normalization_policy": {
+                "const": "zscore_train_union_v1"
+              },
+              "output_domain": {
+                "const": "softplus_log1p_v1"
+              },
+              "primary_registry_eligible": {
+                "const": true
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "hyperparameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "gru_hidden": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "head_hidden": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "batch_size": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "eval_batch_size": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "epochs": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "patience": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "dropout": {
+                    "type": "number",
+                    "minimum": 0,
+                    "exclusiveMaximum": 1
+                  },
+                  "learning_rate": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "weight_decay": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "grad_clip_norm": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "smooth_l1_beta": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "gat_layers": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "gat_heads": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "lambda_local": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "lambda_spatial": {
+                    "const": 0.0
+                  }
+                },
+                "required": [
+                  "gru_hidden",
+                  "head_hidden",
+                  "batch_size",
+                  "eval_batch_size",
+                  "epochs",
+                  "patience",
+                  "dropout",
+                  "learning_rate",
+                  "weight_decay",
+                  "grad_clip_norm",
+                  "smooth_l1_beta",
+                  "gat_layers",
+                  "gat_heads",
+                  "lambda_local",
+                  "lambda_spatial"
+                ]
+              }
+            },
+            "required": [
+              "variant_id",
+              "kind",
+              "model_id",
+              "node_profile",
+              "graph_contract_id",
+              "feature_view_id",
+              "normalization_policy",
+              "output_domain",
+              "primary_registry_eligible",
+              "enabled",
+              "hyperparameters"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "variant_id": {
+                "const": "dual_no_od"
+              },
+              "kind": {
+                "const": "ablation"
+              },
+              "model_id": {
+                "const": "dual_gru_gatv2_h5_v1_2"
+              },
+              "node_profile": {
+                "const": "context29"
+              },
+              "graph_contract_id": {
+                "const": "directed_adj_only_self_v1"
+              },
+              "feature_view_id": {
+                "const": "window12_context29_v1"
+              },
+              "normalization_policy": {
+                "const": "zscore_train_union_v1"
+              },
+              "output_domain": {
+                "const": "softplus_log1p_v1"
+              },
+              "primary_registry_eligible": {
+                "const": false
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "hyperparameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "gru_hidden": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "head_hidden": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "batch_size": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "eval_batch_size": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "epochs": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "patience": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "dropout": {
+                    "type": "number",
+                    "minimum": 0,
+                    "exclusiveMaximum": 1
+                  },
+                  "learning_rate": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "weight_decay": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "grad_clip_norm": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "smooth_l1_beta": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "gat_layers": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "gat_heads": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "lambda_local": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "lambda_spatial": {
+                    "const": 0.0
+                  }
+                },
+                "required": [
+                  "gru_hidden",
+                  "head_hidden",
+                  "batch_size",
+                  "eval_batch_size",
+                  "epochs",
+                  "patience",
+                  "dropout",
+                  "learning_rate",
+                  "weight_decay",
+                  "grad_clip_norm",
+                  "smooth_l1_beta",
+                  "gat_layers",
+                  "gat_heads",
+                  "lambda_local",
+                  "lambda_spatial"
+                ]
+              }
+            },
+            "required": [
+              "variant_id",
+              "kind",
+              "model_id",
+              "node_profile",
+              "graph_contract_id",
+              "feature_view_id",
+              "normalization_policy",
+              "output_domain",
+              "primary_registry_eligible",
+              "enabled",
+              "hyperparameters"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "variant_id": {
+                "const": "dual_no_travel_eta"
+              },
+              "kind": {
+                "const": "ablation"
+              },
+              "model_id": {
+                "const": "dual_gru_gatv2_h5_v1_2"
+              },
+              "node_profile": {
+                "const": "context29"
+              },
+              "graph_contract_id": {
+                "const": "directed_relations_self_v1"
+              },
+              "feature_view_id": {
+                "const": "edge_mask_travel_eta_v1"
+              },
+              "normalization_policy": {
+                "const": "zscore_train_union_v1"
+              },
+              "output_domain": {
+                "const": "softplus_log1p_v1"
+              },
+              "primary_registry_eligible": {
+                "const": false
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "hyperparameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "gru_hidden": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "head_hidden": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "batch_size": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "eval_batch_size": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "epochs": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "patience": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "dropout": {
+                    "type": "number",
+                    "minimum": 0,
+                    "exclusiveMaximum": 1
+                  },
+                  "learning_rate": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "weight_decay": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "grad_clip_norm": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "smooth_l1_beta": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "gat_layers": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "gat_heads": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "lambda_local": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "lambda_spatial": {
+                    "const": 0.0
+                  }
+                },
+                "required": [
+                  "gru_hidden",
+                  "head_hidden",
+                  "batch_size",
+                  "eval_batch_size",
+                  "epochs",
+                  "patience",
+                  "dropout",
+                  "learning_rate",
+                  "weight_decay",
+                  "grad_clip_norm",
+                  "smooth_l1_beta",
+                  "gat_layers",
+                  "gat_heads",
+                  "lambda_local",
+                  "lambda_spatial"
+                ]
+              }
+            },
+            "required": [
+              "variant_id",
+              "kind",
+              "model_id",
+              "node_profile",
+              "graph_contract_id",
+              "feature_view_id",
+              "normalization_policy",
+              "output_domain",
+              "primary_registry_eligible",
+              "enabled",
+              "hyperparameters"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "variant_id": {
+                "const": "dual_reverse"
+              },
+              "kind": {
+                "const": "ablation"
+              },
+              "model_id": {
+                "const": "dual_gru_gatv2_h5_v1_2"
+              },
+              "node_profile": {
+                "const": "context29"
+              },
+              "graph_contract_id": {
+                "const": "directed_relations_reverse_self_v1"
+              },
+              "feature_view_id": {
+                "const": "window12_context29_v1"
+              },
+              "normalization_policy": {
+                "const": "zscore_train_union_v1"
+              },
+              "output_domain": {
+                "const": "softplus_log1p_v1"
+              },
+              "primary_registry_eligible": {
+                "const": false
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "hyperparameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "gru_hidden": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "head_hidden": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "batch_size": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "eval_batch_size": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "epochs": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "patience": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "dropout": {
+                    "type": "number",
+                    "minimum": 0,
+                    "exclusiveMaximum": 1
+                  },
+                  "learning_rate": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "weight_decay": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "grad_clip_norm": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "smooth_l1_beta": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "gat_layers": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "gat_heads": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "lambda_local": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "lambda_spatial": {
+                    "const": 0.0
+                  }
+                },
+                "required": [
+                  "gru_hidden",
+                  "head_hidden",
+                  "batch_size",
+                  "eval_batch_size",
+                  "epochs",
+                  "patience",
+                  "dropout",
+                  "learning_rate",
+                  "weight_decay",
+                  "grad_clip_norm",
+                  "smooth_l1_beta",
+                  "gat_layers",
+                  "gat_heads",
+                  "lambda_local",
+                  "lambda_spatial"
+                ]
+              }
+            },
+            "required": [
+              "variant_id",
+              "kind",
+              "model_id",
+              "node_profile",
+              "graph_contract_id",
+              "feature_view_id",
+              "normalization_policy",
+              "output_domain",
+              "primary_registry_eligible",
+              "enabled",
+              "hyperparameters"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "variant_id": {
+                "const": "dual_lambda_local_zero"
+              },
+              "kind": {
+                "const": "ablation"
+              },
+              "model_id": {
+                "const": "dual_gru_gatv2_h5_v1_2"
+              },
+              "node_profile": {
+                "const": "context29"
+              },
+              "graph_contract_id": {
+                "const": "directed_relations_self_v1"
+              },
+              "feature_view_id": {
+                "const": "unsupervised_local_ablation_v1"
+              },
+              "normalization_policy": {
+                "const": "zscore_train_union_v1"
+              },
+              "output_domain": {
+                "const": "softplus_log1p_v1"
+              },
+              "primary_registry_eligible": {
+                "const": false
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "hyperparameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "gru_hidden": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "head_hidden": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "batch_size": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "eval_batch_size": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "epochs": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "patience": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "dropout": {
+                    "type": "number",
+                    "minimum": 0,
+                    "exclusiveMaximum": 1
+                  },
+                  "learning_rate": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "weight_decay": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "grad_clip_norm": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "smooth_l1_beta": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "gat_layers": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "gat_heads": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "lambda_local": {
+                    "const": 0.0
+                  },
+                  "lambda_spatial": {
+                    "const": 0.0
+                  }
+                },
+                "required": [
+                  "gru_hidden",
+                  "head_hidden",
+                  "batch_size",
+                  "eval_batch_size",
+                  "epochs",
+                  "patience",
+                  "dropout",
+                  "learning_rate",
+                  "weight_decay",
+                  "grad_clip_norm",
+                  "smooth_l1_beta",
+                  "gat_layers",
+                  "gat_heads",
+                  "lambda_local",
+                  "lambda_spatial"
+                ]
+              }
+            },
+            "required": [
+              "variant_id",
+              "kind",
+              "model_id",
+              "node_profile",
+              "graph_contract_id",
+              "feature_view_id",
+              "normalization_policy",
+              "output_domain",
+              "primary_registry_eligible",
+              "enabled",
+              "hyperparameters"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "variant_id": {
+                "const": "dual_lambda_local_03"
+              },
+              "kind": {
+                "const": "ablation"
+              },
+              "model_id": {
+                "const": "dual_gru_gatv2_h5_v1_2"
+              },
+              "node_profile": {
+                "const": "context29"
+              },
+              "graph_contract_id": {
+                "const": "directed_relations_self_v1"
+              },
+              "feature_view_id": {
+                "const": "window12_context29_v1"
+              },
+              "normalization_policy": {
+                "const": "zscore_train_union_v1"
+              },
+              "output_domain": {
+                "const": "softplus_log1p_v1"
+              },
+              "primary_registry_eligible": {
+                "const": false
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "hyperparameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "gru_hidden": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "head_hidden": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "batch_size": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "eval_batch_size": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "epochs": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "patience": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "dropout": {
+                    "type": "number",
+                    "minimum": 0,
+                    "exclusiveMaximum": 1
+                  },
+                  "learning_rate": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "weight_decay": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "grad_clip_norm": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "smooth_l1_beta": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "gat_layers": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "gat_heads": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "lambda_local": {
+                    "const": 0.3
+                  },
+                  "lambda_spatial": {
+                    "const": 0.0
+                  }
+                },
+                "required": [
+                  "gru_hidden",
+                  "head_hidden",
+                  "batch_size",
+                  "eval_batch_size",
+                  "epochs",
+                  "patience",
+                  "dropout",
+                  "learning_rate",
+                  "weight_decay",
+                  "grad_clip_norm",
+                  "smooth_l1_beta",
+                  "gat_layers",
+                  "gat_heads",
+                  "lambda_local",
+                  "lambda_spatial"
+                ]
+              }
+            },
+            "required": [
+              "variant_id",
+              "kind",
+              "model_id",
+              "node_profile",
+              "graph_contract_id",
+              "feature_view_id",
+              "normalization_policy",
+              "output_domain",
+              "primary_registry_eligible",
+              "enabled",
+              "hyperparameters"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "study_id",
+    "base_config_path",
+    "target_contract_id",
+    "seeds",
+    "max_concurrent_trials",
+    "test_access_policy",
+    "required_strong_comparators",
+    "variants"
+  ],
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:graph-surge:study-plan:1.0",
+  "description": "All six mandatory model variants must be present and enabled exactly once; enforce that cross-item rule after structural schema validation."
+}

@@ -26,3 +26,12 @@ def apply_zscore(values: np.ndarray, mean: np.ndarray, std: np.ndarray) -> np.nd
     out -= mean
     out /= std
     return out
+
+
+def fit_scalers(x: np.ndarray, edge_attr: np.ndarray, edge_ptr: np.ndarray, train: tuple[int, int],
+                std_floor: float) -> dict[str, np.ndarray]:
+    """Fit scaler node và cạnh chỉ trên snapshot [a, z) của split train (không dùng ngày trước train)."""
+    a, z = train
+    node_mean, node_std = fit_zscore(x[a:z], std_floor)
+    edge_mean, edge_std = fit_zscore(edge_attr[edge_ptr[a]:edge_ptr[z]], std_floor)
+    return {"node_mean": node_mean, "node_std": node_std, "edge_mean": edge_mean, "edge_std": edge_std}

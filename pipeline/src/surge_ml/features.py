@@ -86,12 +86,12 @@ class Variant:
     bypass: str  # "b" or "b32"
     graph: bool = False
     relations: tuple[str, ...] = ()  # subset of ("adj", "od")
-    family: str = "gru"  # "persistence" | "seasonal" | "gru" | "lgbm"
+    family: str = "gru"  # "persistence" | "seasonal" | "gru"
 
     @property
     def trainable(self) -> bool:
         """Model torch có checkpoint (GRU hoặc GRU+GATv2)."""
-        return self.family in ("gru", "flow_gru")
+        return self.family == "gru"
 
     @property
     def primary_head(self) -> str:
@@ -117,17 +117,5 @@ class Variant:
 VARIANTS = {v.name: v for v in [
     Variant("persistence", None, "b", family="persistence"),
     Variant("seasonal_naive", None, "b", family="seasonal"),
-    Variant("lgbm37", "local37", "b", family="lgbm"),
-    Variant("lgbm40", "all40", "b", family="lgbm"),
-    Variant("gru_local37", "local37", "b"),
-    Variant("gru_pointwise40", "all40", "b"),
-    Variant("gru_strict32", "strict32", "b32"),
     Variant("gru_gatv2_40", "local37", "b", True, ("adj", "od")),
-    Variant("gru_gatv2_40_no_od", "local37", "b", True, ("adj",)),
-    Variant("gru_gatv2_40_no_adj", "local37", "b", True, ("od",)),
-    # V3 experiment: identical Flow-STGATv2 capacity across relation ablations.
-    Variant("flow_stgatv2_full", "local37", "b", True, ("adj", "od"), family="flow_gru"),
-    Variant("flow_stgatv2_adj", "local37", "b", True, ("adj",), family="flow_gru"),
-    Variant("flow_stgatv2_od", "local37", "b", True, ("od",), family="flow_gru"),
-    Variant("flow_stgatv2_self", "local37", "b", True, ("self",), family="flow_gru"),
 ]}

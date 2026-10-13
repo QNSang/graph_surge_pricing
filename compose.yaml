@@ -1,0 +1,47 @@
+# Postgres cho schema database/schema.sql và pgAdmin để xem dữ liệu.
+#   docker compose up -d --wait          (chạy ở thư mục gốc repo)
+#   pgAdmin: http://localhost:5050, server "surge_erd (Docker)", mật khẩu DB: surge
+# Không dùng `docker compose down -v`: lệnh đó xoá volume và mất dữ liệu đã import.
+name: graph_surge_pricing
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: surge_erd_db
+    environment:
+      POSTGRES_USER: surge
+      POSTGRES_PASSWORD: surge
+      POSTGRES_DB: surge_erd
+    ports:
+      - "5434:5432"
+    volumes:
+      - surge_erd_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U surge -d surge_erd"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Chế độ desktop: không cần đăng nhập pgAdmin. Lần đầu mở server sẽ hỏi mật khẩu DB.
+  pgadmin:
+    image: dpage/pgadmin4:9.8
+    container_name: surge_erd_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - ./database/pgadmin_servers.json:/pgadmin4/servers.json:ro
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  surge_erd_pg:
+    name: database_surge_erd_pg   # volume đã có dữ liệu import, giữ tên cũ
+  pgadmin_data:
+    name: graph_surge_pricing_pgadmin

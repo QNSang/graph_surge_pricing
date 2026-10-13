@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Surge Control</title>
+<style>
+:root{
+  --bg:#0b0f17;--panel:#121826;--panel2:#171f30;--line:#243049;--text:#e6ebf5;--mute:#8693ad;
+  --up:#ff6b4a;--down:#38bdf8;--hold:#64748b;--review:#f5b942;--ok:#34d399;--accent:#8b7cff;--flow:#5eead4;
+  --r:12px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:radial-gradient(1200px 600px at 20% -10%,#17203a 0%,var(--bg) 60%);color:var(--text);
+  font:13px/1.45 ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer}
+.app{display:grid;grid-template-rows:auto 1fr;height:100vh;gap:10px;padding:10px 12px}
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{font-weight:700;letter-spacing:.3px;font-size:15px;display:flex;align-items:center;gap:8px}
+.brand i{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
+.badge{font-size:11px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mute)}
+.badge.demo{color:var(--review);border-color:#5b4a1e;background:#2a2412}
+.kpis{display:flex;gap:8px;margin-left:auto}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:5px 12px;min-width:92px}
+.kpi b{display:block;font-size:17px;font-variant-numeric:tabular-nums}
+.kpi span{color:var(--mute);font-size:11px}
+.clock{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:5px 10px}
+.clock .t{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;min-width:58px}
+.clock input[type=range]{width:260px;accent-color:var(--accent)}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 11px;transition:.15s}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#0b0f17;font-weight:600}
+.btn.up{background:#3a1a14;border-color:#6b2c20;color:#ffb4a2}
+.btn.down{background:#10293a;border-color:#1f5273;color:#a5def9}
+.btn.ghost{background:transparent}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+main{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(380px,1fr);gap:10px;min-height:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);min-height:0;display:flex;flex-direction:column}
+.card h3{margin:0;padding:9px 12px;font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:var(--mute);
+  display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line)}
+.card h3 .sp{margin-left:auto;display:flex;gap:4px}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{background:transparent;border:0;padding:3px 9px;color:var(--mute);font-size:11px;text-transform:none;letter-spacing:0}
+.seg button.on{background:var(--accent);color:#0b0f17;font-weight:600}
+.left{display:grid;grid-template-rows:minmax(0,1fr) 250px;gap:10px;min-height:0}
+#mapwrap{position:relative;flex:1;min-height:0}
+#map{width:100%;height:100%;display:block}
+.legend{position:absolute;left:12px;bottom:10px;font-size:11px;color:var(--mute);display:flex;align-items:center;gap:8px;
+  background:#0b0f17b8;padding:5px 9px;border-radius:8px;border:1px solid var(--line)}
+.legend .bar{width:140px;height:8px;border-radius:4px}
+.hint{position:absolute;right:12px;bottom:10px;font-size:11px;color:var(--mute);background:#0b0f17b8;padding:5px 9px;border-radius:8px;border:1px solid var(--line)}
+.right{display:grid;grid-template-rows:auto minmax(0,1fr);gap:10px;min-height:0}
+.act{padding:12px}
+.act .top{display:flex;align-items:center;gap:10px}
+.act .name{font-size:16px;font-weight:700}
+.chip{white-space:nowrap;text-align:center;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;letter-spacing:.4px}
+.chip.INCREASE{background:#3a1a14;color:var(--up)}.chip.DECREASE{background:#10293a;color:var(--down)}
+.chip.HOLD{background:#1b2332;color:var(--mute)}.chip.REVIEW{background:#2a2412;color:var(--review)}
+.price{display:flex;align-items:baseline;gap:10px;margin:8px 0 2px}
+.price .now{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.price .arrow{color:var(--mute)}
+.price .to{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.price .d{font-size:13px;font-weight:600}
+.why{color:var(--mute);font-size:12px;margin:2px 0 8px;min-height:18px}
+.reasons{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+.reasons span{font-size:10.5px;padding:1px 7px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);color:var(--mute);font-family:ui-monospace,Consolas,monospace}
+.btns{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.step{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.step button{background:var(--panel2);border:0;padding:5px 9px}
+.step span{padding:0 10px;font-variant-numeric:tabular-nums;font-weight:600;min-width:46px;text-align:center}
+.bars{display:grid;grid-template-columns:auto 1fr auto;gap:3px 8px;align-items:center;font-size:11px;color:var(--mute);margin:8px 0 0}
+.bars .b{height:6px;background:var(--panel2);border-radius:3px;position:relative}
+.bars .b i{position:absolute;top:0;bottom:0;border-radius:3px}
+.bars .b:after{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--line)}
+.charts{display:grid;grid-template-rows:1fr 1fr;min-height:0;flex:1}
+.charts>div{position:relative;min-height:0;border-bottom:1px solid var(--line)}
+.charts>div:last-child{border:0}
+.charts svg{width:100%;height:100%;display:block}
+.cl{position:absolute;left:12px;top:5px;font-size:11px;color:var(--mute);display:flex;gap:10px;pointer-events:none}
+.cl b{font-weight:600}
+.queue{padding:0;overflow:auto;flex:1}
+.qrow{display:grid;grid-template-columns:92px 1fr auto auto;gap:8px;align-items:center;padding:6px 12px;border-bottom:1px solid #1a2336;cursor:pointer}
+.qrow:hover,.qrow.sel{background:var(--panel2)}
+.qrow .z{font-size:11px;color:var(--mute)}
+.qrow .p{font-variant-numeric:tabular-nums;font-weight:600}
+.qrow .mini{display:flex;gap:4px}
+.mini button{padding:2px 8px;font-size:11px}
+.empty{color:var(--mute);padding:20px;text-align:center}
+.log{font-size:11px;color:var(--mute);padding:4px 12px;max-height:74px;overflow:auto;border-top:1px solid var(--line);font-family:ui-monospace,Consolas,monospace}
+.log div b{color:var(--ok);font-weight:600}
+.tip{position:fixed;pointer-events:none;background:#0b0f17f2;border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:11.5px;z-index:9;display:none}
+@keyframes flow{to{stroke-dashoffset:-24}}
+.od{animation:flow 1.2s linear infinite}
+@media (max-width:1100px){body{overflow:auto}.app{height:auto}main{grid-template-columns:1fr}.left{grid-template-rows:480px 200px}.right{grid-template-rows:auto 520px}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="brand"><i></i>Surge Control</div>
+  <span class="badge">TP.HCM · <span id="day"></span> · replay</span>
+  <span class="badge demo" title="Chưa có model đã train. Forecast và controller là bản heuristic giả lập để thiết kế UI.">DEMO · forecast giả lập</span>
+  <div class="clock">
+    <button class="btn" id="play">▶</button>
+    <span class="t" id="clock">--:--</span>
+    <input type="range" id="scrub" min="0" value="0">
+    <div class="seg" id="speed"><button data-s="1">1×</button><button data-s="4" class="on">4×</button><button data-s="12">12×</button></div>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><b id="k_ds">-</b><span>D/S toàn mạng</span></div>
+    <div class="kpi"><b id="k_hot">-</b><span>Hex thiếu cung (D/S&gt;1.5)</span></div>
+    <div class="kpi"><b id="k_q">-</b><span>Chờ duyệt</span></div>
+    <div class="kpi"><b id="k_ap">0</b><span>Đã áp dụng</span></div>
+  </div>
+</header>
+
+<main>
+  <div class="left">
+    <section class="card">
+      <h3>Mạng hex &amp; luồng OD
+        <div class="sp">
+          <div class="seg" id="layer">
+            <button data-l="ds" class="on">D/S</button><button data-l="d">Demand</button><button data-l="s">Supply</button><button data-l="delta">Δ đề xuất</button>
+          </div>
+          <div class="seg" id="edgeToggle"><button data-e="od" class="on">OD flow</button><button data-e="adj">Kề</button></div>
+        </div>
+      </h3>
+      <div id="mapwrap">
+        <svg id="map"></svg>
+        <div class="legend" id="legend"></div>
+        <div class="hint">Bấm hex để chọn · nét sáng = quan hệ với hex đang chọn</div>
+      </div>
+    </section>
+    <section class="card">
+      <h3>Hàng đợi duyệt <span id="qn" class="badge"></span>
+        <div class="sp"><button class="btn up" id="apAll">Duyệt tất cả đề xuất</button></div></h3>
+      <div class="queue" id="queue"></div>
+      <div class="log" id="log"></div>
+    </section>
+  </div>
+
+  <div class="right">
+    <section class="card act" id="act"></section>
+    <section class="card">
+      <h3>Diễn biến trong ngày <span class="badge" id="ctitle"></span></h3>
+      <div class="charts">
+        <div id="c1"></div>
+        <div id="c2"></div>
+      </div>
+    </section>
+  </div>
+</main>
+</div>
+<div class="tip" id="tip"></div>
+
+<script>
+const DATA = __DATA__;
+</script>
+<script>
+(()=>{
+const H = DATA.hexes, N = H.length, T = DATA.ts.length;
+const $ = s => document.querySelector(s);
+const NS = "http://www.w3.org/2000/svg";
+const el = (n, a={}, p) => { const e = document.createElementNS(NS,n); for (const k in a) e.setAttribute(k,a[k]); if(p) p.appendChild(e); return e; };
+const clamp = (x,a,b)=>Math.min(b,Math.max(a,x));
+const ZN = {cbd:"CBD",airport:"Sân bay",office:"Văn phòng",residential:"Dân cư",suburb:"Ngoại ô",venue:"Sự kiện"};
+
+/* ---------- state ---------- */
+const st = { t: Math.round(17.5*12), sel: null, layer:"ds", edge:"od", playing:false, speed:4,
+             applied:{}, rejected:{} /* key hex -> {t, to} */, nApplied:0, log:[] };
+const nbr = Array.from({length:N},()=>[]);
+DATA.adj.forEach(([a,b])=>{ if(!nbr[a].includes(b)) nbr[a].push(b); if(!nbr[b].includes(a)) nbr[b].push(a); });
+
+/* ---------- stand-in model + controller (DEMO) ---------- */
+const lr = (t,i)=>Math.log((DATA.D[t][i]+1)/(DATA.S[t][i]+1));          // log((D+1)/(S+1))
+function smooth(t,i){ const a=Math.max(0,t-2); let s=0,w=0; for(let k=a;k<=t;k++){const wk=k-a+1; s+=wk*lr(k,i); w+=wk;} return s/w; }
+function forecast(t,i){
+  const now=smooth(t,i), prev=smooth(Math.max(0,t-3),i);
+  const yL = now + 0.6*(now-prev)/3*1;                                   // local: persistence + momentum
+  let nb=0; nbr[i].forEach(j=>nb+=smooth(t,j)); nb = nbr[i].length? nb/nbr[i].length : now;
+  const yG = yL + 0.35*(nb-now);                                         // graph: kéo về láng giềng
+  return {yL, yG, qL:Math.exp(yL), qG:Math.exp(yG), R:Math.expm1(yG-yL), P:yG};
+}
+function decide(t,i){
+  const f=forecast(t,i), cur=DATA.surge[t][i], vol=DATA.D[t][i]+DATA.S[t][i];
+  const aP = clamp(0.55*f.P,-1,1), aR = clamp(0.9*f.R,-1,1);
+  const a = 0.7*aP + 0.3*aR;
+  let req = Math.abs(a)<0.08 ? 0 : a*0.6;
+  const reasons=[]; if(req===0) reasons.push("PRESSURE_DEADZONE");
+  if(req>0 && f.qG<1.2){ req=0; reasons.push("DIRECTION_BLOCKED"); }
+  if(req<0 && (f.qG>0.6 || cur<=1.0)){ req=0; reasons.push("DIRECTION_BLOCKED"); }
+  let app = clamp(req,-0.4,0.4); if(Math.abs(req)>0.4) reasons.push("GLOBAL_CAP_CLIPPED");
+  let sf = clamp(Math.round((cur+app)*10)/10,1.0,3.0); app = Math.round((sf-cur)*10)/10;
+  let status = app>=0.1?"INCREASE":app<=-0.1?"DECREASE":"HOLD";
+  if(vol<4){ status="REVIEW"; reasons.push("LOW_SUPPORT"); }
+  else if(reasons.includes("GLOBAL_CAP_CLIPPED")) status="REVIEW";
+  if(status==="HOLD"&&!reasons.length) reasons.push("PRESSURE_DEADZONE");
+  return {i,cur,delta:app,final:sf,status,reasons,aP,aR,a,...f,vol};
+}
+let dec=[]; function recompute(){ dec=H.map((_,i)=>decide(st.t,i)); }
+
+/* ---------- geometry ---------- */
+let minLa=1e9,maxLa=-1e9,minLn=1e9,maxLn=-1e9;
+H.forEach(h=>h.poly.forEach(([la,ln])=>{minLa=Math.min(minLa,la);maxLa=Math.max(maxLa,la);minLn=Math.min(minLn,ln);maxLn=Math.max(maxLn,ln);}));
+const cosLat=Math.cos((minLa+maxLa)/2*Math.PI/180);
+const W0=(maxLn-minLn)*cosLat, H0=(maxLa-minLa);
+const map=$("#map");
+let VW=1000,VH=800;
+function proj(la,ln){ const pad=24, k=Math.min((VW-2*pad)/W0,(VH-2*pad)/H0);
+  const ox=(VW-W0*k)/2, oy=(VH-H0*k)/2; return [ox+(ln-minLn)*cosLat*k, oy+(maxLa-la)*k]; }
+const C = H.map(h=>proj(h.lat,h.lng));
+
+/* ---------- colors ---------- */
+function lerp(a,b,t){return a.map((x,i)=>Math.round(x+(b[i]-x)*t));}
+const rgb=c=>`rgb(${c[0]},${c[1]},${c[2]})`;
+const DIV=[[56,189,248],[28,38,58],[255,107,74]];                     // xanh - trung tính - đỏ
+function divColor(v){ const t=clamp(v,-1,1); return rgb(t<0?lerp(DIV[1],DIV[0],-t):lerp(DIV[1],DIV[2],t)); }
+const SEQ=[[28,38,58],[139,124,255]];
+function seqColor(v){return rgb(lerp(SEQ[0],SEQ[1],clamp(v,0,1)));}
+function cellValue(i){
+  const t=st.t;
+  if(st.layer==="ds") return {c:divColor(Math.log2((DATA.D[t][i]+1)/(DATA.S[t][i]+1))/2.5), txt:`D/S ${((DATA.D[t][i]+1)/(DATA.S[t][i]+1)).toFixed(2)}`};
+  if(st.layer==="d")  return {c:seqColor(DATA.D[t][i]/18), txt:`Demand ${DATA.D[t][i]}`};
+  if(st.layer==="s")  return {c:seqColor(DATA.S[t][i]/18), txt:`Supply ${DATA.S[t][i].toFixed(1)}`};
+  return {c:divColor(dec[i].delta/0.4), txt:`Δ ${dec[i].delta>=0?"+":""}${dec[i].delta.toFixed(1)}`};
+}
+
+/* ---------- map build ---------- */
+const gEdges=el("g",{},map), gHex=el("g",{},map), gOD=el("g",{},map), gLbl=el("g",{},map);
+const defs=el("defs",{},map);
+const hexEls=[], dotEls=[], lblEls=[];
+function buildMap(){
+  const r=map.getBoundingClientRect(); VW=Math.max(400,r.width); VH=Math.max(300,r.height);
+  map.setAttribute("viewBox",`0 0 ${VW} ${VH}`);
+  gEdges.innerHTML="";gHex.innerHTML="";gOD.innerHTML="";gLbl.innerHTML=""; hexEls.length=0;dotEls.length=0;lblEls.length=0;
+  C.splice(0,N,...H.map(h=>proj(h.lat,h.lng)));
+  H.forEach((h,i)=>{
+    const pts=h.poly.map(([la,ln])=>proj(la,ln).join(",")).join(" ");
+    const p=el("polygon",{points:pts,"stroke-linejoin":"round",stroke:"#0b0f17","stroke-width":1.2,style:"cursor:pointer;transition:fill .25s"},gHex);
+    p.addEventListener("click",()=>select(i));
+    p.addEventListener("mousemove",ev=>tip(ev,i)); p.addEventListener("mouseleave",()=>$("#tip").style.display="none");
+    hexEls.push(p);
+    const d=el("circle",{cx:C[i][0],cy:C[i][1],r:2,fill:"#fff","fill-opacity":.7,"pointer-events":"none"},gLbl); dotEls.push(d);
+    const l=el("text",{x:C[i][0],y:C[i][1]-9,"text-anchor":"middle","font-size":10,fill:"#fff","fill-opacity":.0,"pointer-events":"none","font-weight":600},gLbl); lblEls.push(l);
+  });
+  paintEdges(); paintMap();
+}
+function paintEdges(){
+  gEdges.innerHTML="";gOD.innerHTML="";
+  const s=st.sel;
+  if(st.edge==="adj"){
+    DATA.adj.forEach(([a,b])=>{ if(a>b) return; const on=s!=null&&(a===s||b===s);
+      el("line",{x1:C[a][0],y1:C[a][1],x2:C[b][0],y2:C[b][1],stroke:on?"#fff":"#6b7a99","stroke-opacity":on?.9:.28,"stroke-width":on?1.8:.8,"pointer-events":"none"},gEdges); });
+  }else{
+    const hr=Math.floor(st.t/12), E=DATA.od[hr]; const mx=Math.max(...E.map(e=>e[2]),1);
+    E.forEach(([a,b,w])=>{
+      const on=s!=null&&(a===s||b===s); if(s!=null&&!on&&w<mx*.35) return;
+      const [x1,y1]=C[a],[x2,y2]=C[b], mx_=(x1+x2)/2, my=(y1+y2)/2, dx=x2-x1, dy=y2-y1, L=Math.hypot(dx,dy)||1;
+      const cx=mx_-dy/L*L*.18, cy=my+dx/L*L*.18;
+      el("path",{d:`M${x1},${y1} Q${cx},${cy} ${x2},${y2}`,fill:"none",stroke:on?"#fff":"var(--flow)","stroke-opacity":on?.95:.16+.5*w/mx,
+        "stroke-width":.6+3.2*w/mx,"stroke-linecap":"round","stroke-dasharray":"4 8",class:"od","pointer-events":"none"},gOD);
+    });
+  }
+}
+function paintMap(){
+  H.forEach((h,i)=>{
+    const v=cellValue(i); hexEls[i].setAttribute("fill",v.c);
+    const sel=i===st.sel, nb=st.sel!=null&&nbr[st.sel].includes(i);
+    hexEls[i].setAttribute("stroke",sel?"#fff":nb?"#c9d3ea":"#0b0f17"); hexEls[i].setAttribute("stroke-width",sel?2.6:nb?1.8:1.2);
+    const d=dec[i], pend=(d.status==="INCREASE"||d.status==="DECREASE"||d.status==="REVIEW")&&!st.applied[i]&&!st.rejected[i];
+    dotEls[i].setAttribute("r",1.5+Math.sqrt(DATA.D[st.t][i])*.9);
+    dotEls[i].setAttribute("fill",st.applied[i]?"#34d399":pend?(d.status==="REVIEW"?"#f5b942":"#fff"):"#fff");
+    dotEls[i].setAttribute("fill-opacity",pend||st.applied[i]?.95:.35);
+    lblEls[i].setAttribute("fill-opacity",(pend&&(Math.abs(d.delta)>=0.2||d.status==="REVIEW"&&d.delta!==0))||st.applied[i]||sel?.95:0);
+    lblEls[i].textContent=st.applied[i]?`×${st.applied[i].to.toFixed(1)}`:(d.delta?`${d.delta>0?"+":""}${d.delta.toFixed(1)}`:"");
+  });
+}
+function legend(){
+  const g=(st.layer==="d"||st.layer==="s")?`linear-gradient(90deg,${rgb(SEQ[0])},${rgb(SEQ[1])})`:`linear-gradient(90deg,${rgb(DIV[0])},${rgb(DIV[1])},${rgb(DIV[2])})`;
+  const lab={ds:["thừa cung","D/S = 1","thiếu cung"],d:["0","","≥18"],s:["0","","≥18"],delta:["−0.4","0","+0.4"]}[st.layer];
+  $("#legend").innerHTML=`${lab[0]}<span class="bar" style="background:${g}"></span>${lab[2]}<span style="opacity:.6">· ${lab[1]}</span>`;
+}
+function tip(ev,i){
+  const t=$("#tip"), d=dec[i]; t.style.display="block"; t.style.left=ev.clientX+14+"px"; t.style.top=ev.clientY+12+"px";
+  t.innerHTML=`<b>${ZN[H[i].zone]}</b> · ${H[i].id.slice(0,9)}<br>D ${DATA.D[st.t][i]} · S ${DATA.S[st.t][i].toFixed(1)} · D/S ${((DATA.D[st.t][i]+1)/(DATA.S[st.t][i]+1)).toFixed(2)}<br>Surge ×${DATA.surge[st.t][i].toFixed(1)} → <b>×${d.final.toFixed(1)}</b> (${d.status})`;
+}
+
+/* ---------- charts ---------- */
+function lineChart(host,{series,yMax,yMin=0,log=false,refs=[],fmt=v=>v.toFixed(0),legend:lg}){
+  host.innerHTML=""; const r=host.getBoundingClientRect(); const w=r.width,h=r.height, m={l:34,r:12,t:24,b:18};
+  const svg=el("svg",{viewBox:`0 0 ${w} ${h}`},host);
+  const X=k=>m.l+(w-m.l-m.r)*k/(T-1);
+  const f=v=>log?Math.log2(Math.max(v,1/32)):v, y0=f(yMin), y1=f(yMax);
+  const Y=v=>m.t+(h-m.t-m.b)*(1-(f(v)-y0)/(y1-y0));
+  const ticks=log?[0.125,0.25,0.5,1,2,4,8]:[0,yMax/2,yMax].map(v=>Math.round(v));
+  ticks.forEach(v=>{ if(v<yMin||v>yMax) return; el("line",{x1:m.l,x2:w-m.r,y1:Y(v),y2:Y(v),stroke:"#243049","stroke-width":.7},svg);
+    el("text",{x:m.l-5,y:Y(v)+3,"text-anchor":"end","font-size":9.5,fill:"#8693ad"},svg).textContent=log?(v<1?v:v):v; });
+  for(let hh=0;hh<=24;hh+=4){ const k=Math.min(hh*12,T-1); el("text",{x:X(k),y:h-4,"text-anchor":"middle","font-size":9.5,fill:"#8693ad"},svg).textContent=String(hh).padStart(2,"0")+"h"; }
+  refs.forEach(rf=>{ if(rf.band){ el("rect",{x:m.l,width:w-m.l-m.r,y:Y(rf.band[1]),height:Math.max(0,Y(rf.band[0])-Y(rf.band[1])),fill:rf.color,"fill-opacity":.09},svg);}
+    else el("line",{x1:m.l,x2:w-m.r,y1:Y(rf.v),y2:Y(rf.v),stroke:rf.color,"stroke-dasharray":"4 4","stroke-opacity":.7},svg); });
+  series.forEach(s=>{
+    const pts=s.data.map((v,k)=>[X(k),Y(Math.min(Math.max(v,yMin),yMax))]);
+    const path=a=>a.map((p,k)=>(k?"L":"M")+p[0].toFixed(1)+","+p[1].toFixed(1)).join("");
+    el("path",{d:path(pts),fill:"none",stroke:s.color,"stroke-width":1.3,"stroke-opacity":.28},svg);                 // replay (tương lai)
+    const past=pts.slice(0,st.t+1);
+    if(s.area){ el("path",{d:path(past)+`L${past[past.length-1][0]},${Y(yMin)}L${past[0][0]},${Y(yMin)}Z`,fill:s.color,"fill-opacity":.12},svg); }
+    el("path",{d:path(past),fill:"none",stroke:s.color,"stroke-width":1.9,"stroke-linejoin":"round"},svg);
+    el("circle",{cx:pts[st.t][0],cy:pts[st.t][1],r:3.5,fill:s.color,stroke:"#0b0f17","stroke-width":1.5},svg);
+  });
+  el("rect",{x:X(st.t),y:m.t,width:Math.max(0,X(Math.min(T-1,st.t+1))-X(st.t)),height:h-m.t-m.b,fill:"#8b7cff","fill-opacity":.25},svg);
+  el("line",{x1:X(st.t),x2:X(st.t),y1:m.t,y2:h-m.b,stroke:"#8b7cff","stroke-width":1.2},svg);
+  const hit=el("rect",{x:m.l,y:0,width:w-m.l-m.r,height:h,fill:"transparent",style:"cursor:pointer"},svg);
+  hit.addEventListener("click",ev=>{ const b=svg.getBoundingClientRect(); const k=Math.round((ev.clientX-b.left-m.l)/(b.width-m.l-m.r)*(T-1)); seek(clamp(k,0,T-1)); });
+  const L=document.createElement("div"); L.className="cl"; L.innerHTML=lg; host.appendChild(L);
+}
+function charts(){
+  const i=st.sel; if(i==null){ $("#c1").innerHTML=$("#c2").innerHTML=`<div class="empty">Chọn một hex trên bản đồ</div>`; return; }
+  const col=k=>DATA[k].map(r=>r[i]);
+  const ma=a=>a.map((_,k)=>{const b=Math.max(0,k-5);let s=0;for(let j=b;j<=k;j++)s+=a[j];return s/(k-b+1);});
+  const D=ma(col("D")), S=ma(col("S"));
+  const mx=Math.max(8,Math.ceil(Math.max(...D,...S)/4)*4);
+  lineChart($("#c1"),{series:[{data:D,color:"#ff6b4a",area:true},{data:S,color:"#38bdf8"}],yMax:mx,
+    legend:`<span style="color:#ff6b4a">● Demand <b>${D[st.t].toFixed(1)}</b></span><span style="color:#38bdf8">● Supply hiệu dụng <b>${S[st.t].toFixed(1)}</b></span><span>TB trượt 30 phút</span>`});
+  const ds=D.map((d,k)=>(d+1)/(S[k]+1));   // từ chuỗi đã làm mượt
+  lineChart($("#c2"),{series:[{data:ds,color:"#8b7cff"}],yMax:8,yMin:0.125,log:true,refs:[{v:1,color:"#8693ad"},{band:[1.5,8],color:"#ff6b4a"}],
+    legend:`<span style="color:#8b7cff">● D/S (log) <b>${ds[st.t].toFixed(2)}</b></span><span>vùng đỏ: thiếu cung &gt; 1.5</span>`});
+  $("#ctitle").textContent=`${ZN[H[i].zone]} · ${H[i].id.slice(0,9)}`;
+}
+
+/* ---------- action panel ---------- */
+function barRow(label,v,max,color){ const p=clamp(v/max,-1,1)*50; const st_=p>=0?`left:50%;width:${p}%`:`left:${50+p}%;width:${-p}%`;
+  return `<span>${label}</span><div class="b"><i style="${st_};background:${color}"></i></div><span>${v>=0?"+":""}${v.toFixed(2)}</span>`; }
+function actPanel(){
+  const a=$("#act"), i=st.sel;
+  if(i==null){ a.innerHTML=`<div class="empty">Chọn hex để xem đề xuất giá và thao tác.<br>Hoặc chọn từ <b>Hàng đợi duyệt</b>.</div>`; return; }
+  const d=dec[i], ap=st.applied[i], rj=st.rejected[i], ov=ap?ap.to:d.final;
+  const dl=ov-d.cur, col=dl>0?"var(--up)":dl<0?"var(--down)":"var(--mute)";
+  const actionable=!ap&&d.status!=="HOLD";
+  const why = d.status==="HOLD" ? "Không cần chỉnh giá lúc này." :
+    `Dự báo D/S tại t+5 = ${d.qG.toFixed(2)} (local ${d.qL.toFixed(2)}). Mạng lân cận ${d.R>=0?"đẩy áp lực lên":"làm nhẹ áp lực"} ${Math.abs(d.R*100).toFixed(0)}%.`;
+  a.innerHTML=`
+   <div class="top"><span class="name">${ZN[H[i].zone]} <span style="color:var(--mute);font-weight:400;font-size:12px">${H[i].id.slice(0,9)}</span></span>
+     <span class="chip ${d.status}">${ap?"ĐÃ ÁP DỤNG":rj?"ĐÃ GIỮ GIÁ":d.status}</span></div>
+   <div class="price"><span class="now">×${d.cur.toFixed(1)}</span><span class="arrow">→</span><span class="to">×${ov.toFixed(1)}</span>
+     <span class="d" style="color:${col}">${dl>=0?"+":""}${dl.toFixed(1)}</span></div>
+   <div class="why">${why}</div>
+   <div class="reasons">${d.reasons.map(r=>`<span>${r}</span>`).join("")}</div>
+   <div class="btns">
+     <button class="btn primary" id="bAp" ${actionable&&!rj?"":"disabled"}>✓ Duyệt ×${ov.toFixed(1)}</button>
+     <div class="step"><button id="bm" ${ap?"disabled":""}>−</button><span id="bv">×${ov.toFixed(1)}</span><button id="bp" ${ap?"disabled":""}>＋</button></div>
+     <button class="btn" id="bHold" ${ap?"disabled":""}>Giữ giá ×${d.cur.toFixed(1)}</button>
+     <button class="btn ghost" id="bUndo" ${ap||rj?"":"disabled"}>↶ Hoàn tác</button>
+   </div>
+   <div class="bars">${barRow("Pressure aP",d.aP,1,"var(--accent)")}${barRow("Revision aR",d.aR,1,"var(--flow)")}${barRow("Tổng a",d.a,1,"var(--review)")}</div>`;
+  let manual=d.final;
+  $("#bAp")?.addEventListener("click",()=>doApply(i,manual));
+  $("#bm").addEventListener("click",()=>{manual=clamp(Math.round((manual-.1)*10)/10,1,3); setManual();});
+  $("#bp").addEventListener("click",()=>{manual=clamp(Math.round((manual+.1)*10)/10,1,3); setManual();});
+  function setManual(){ $("#bv").textContent="×"+manual.toFixed(1); const b=$("#bAp"); b.textContent=`✓ Duyệt ×${manual.toFixed(1)}`; b.disabled=manual===d.cur; }
+  $("#bHold").addEventListener("click",()=>doReject(i));
+  $("#bUndo").addEventListener("click",()=>doUndo(i));
+}
+
+/* ---------- queue ---------- */
+function queue(){
+  const items=dec.filter(d=>d.status!=="HOLD"&&!st.applied[d.i]&&!st.rejected[d.i]).sort((a,b)=>(b.delta!==0)-(a.delta!==0)||Math.abs(b.delta)-Math.abs(a.delta));
+  $("#qn").textContent=items.length; $("#k_q").textContent=items.length;
+  const q=$("#queue");
+  if(!items.length){ q.innerHTML=`<div class="empty">Không có đề xuất nào đang chờ.</div>`; return; }
+  q.innerHTML=items.slice(0,40).map(d=>`<div class="qrow ${d.i===st.sel?"sel":""}" data-i="${d.i}">
+    <span class="chip ${d.status}">${d.status==="INCREASE"?"▲ TĂNG":d.status==="DECREASE"?"▼ GIẢM":"? REVIEW"}</span>
+    <span><span class="z">${ZN[H[d.i].zone]}</span> ${H[d.i].id.slice(5,9)} <span class="z">D/S ${d.qG.toFixed(2)}</span></span>
+    <span class="p">×${d.cur.toFixed(1)} → ×${d.final.toFixed(1)}</span>
+    <span class="mini"><button class="btn up" data-a="ap" ${d.status==="REVIEW"&&d.delta===0?"disabled":""}>✓</button><button class="btn" data-a="rj">✕</button></span></div>`).join("");
+  q.querySelectorAll(".qrow").forEach(r=>{ const i=+r.dataset.i;
+    r.addEventListener("click",ev=>{ const b=ev.target.closest("button"); if(!b) return select(i);
+      b.dataset.a==="ap"?doApply(i,dec[i].final):doReject(i); }); });
+}
+
+/* ---------- actions ---------- */
+function stamp(){return DATA.ts[st.t];}
+function addLog(msg){ st.log.unshift(`[${stamp()}] ${msg}`); st.log=st.log.slice(0,40); $("#log").innerHTML=st.log.map((l,k)=>`<div>${k===0?"<b>●</b> ":""}${l}</div>`).join(""); }
+function doApply(i,to){ const d=dec[i]; if(to===d.cur) return; st.applied[i]={t:st.t,to}; delete st.rejected[i]; st.nApplied++;
+  addLog(`Duyệt ${ZN[H[i].zone]} ${H[i].id.slice(5,9)}: ×${d.cur.toFixed(1)} → ×${to.toFixed(1)}${to!==d.final?" (override)":""}`); refresh(); }
+function doReject(i){ st.rejected[i]={t:st.t}; delete st.applied[i]; addLog(`Giữ giá ${ZN[H[i].zone]} ${H[i].id.slice(5,9)} ×${dec[i].cur.toFixed(1)}`); refresh(); }
+function doUndo(i){ if(st.applied[i]) st.nApplied--; delete st.applied[i]; delete st.rejected[i]; addLog(`Hoàn tác ${ZN[H[i].zone]} ${H[i].id.slice(5,9)}`); refresh(); }
+$("#apAll").addEventListener("click",()=>{ let n=0; dec.forEach(d=>{ if((d.status==="INCREASE"||d.status==="DECREASE")&&!st.applied[d.i]&&!st.rejected[d.i]){ st.applied[d.i]={t:st.t,to:d.final}; st.nApplied++; n++; } });
+  if(n) addLog(`Duyệt hàng loạt ${n} đề xuất (không gồm REVIEW)`); refresh(); });
+
+/* ---------- control ---------- */
+function kpis(){
+  let D=0,S=0,hot=0; for(let i=0;i<N;i++){ D+=DATA.D[st.t][i]; S+=DATA.S[st.t][i]; if((DATA.D[st.t][i]+1)/(DATA.S[st.t][i]+1)>1.5) hot++; }
+  $("#k_ds").textContent=(D/Math.max(S,1)).toFixed(2); $("#k_hot").textContent=hot; $("#k_ap").textContent=st.nApplied;
+}
+function refresh(){ recompute(); paintEdges(); paintMap(); actPanel(); queue(); charts(); kpis(); }
+function select(i){ st.sel=i; refresh(); }
+function seek(t){ st.t=t; $("#scrub").value=t; $("#clock").textContent=DATA.ts[t]; /* quyết định cũ hết hiệu lực khi đổi thời điểm */
+  if(t!==st._lastT){ st.rejected={}; } st._lastT=t; refresh(); }
+$("#scrub").max=T-1; $("#scrub").addEventListener("input",e=>seek(+e.target.value));
+$("#day").textContent=DATA.day;
+$("#play").addEventListener("click",()=>{ st.playing=!st.playing; $("#play").textContent=st.playing?"⏸":"▶"; });
+$("#speed").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; st.speed=+b.dataset.s; [...$("#speed").children].forEach(x=>x.classList.toggle("on",x===b)); });
+$("#layer").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; st.layer=b.dataset.l; [...$("#layer").children].forEach(x=>x.classList.toggle("on",x===b)); legend(); paintMap(); });
+$("#edgeToggle").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; st.edge=b.dataset.e; [...$("#edgeToggle").children].forEach(x=>x.classList.toggle("on",x===b)); paintEdges(); });
+let acc=0,last=performance.now();
+(function loop(now){ const dt=now-last; last=now;
+  if(st.playing){ acc+=dt*st.speed; while(acc>=1000){ acc-=1000; if(st.t<T-1) seek(st.t+1); else { st.playing=false; $("#play").textContent="▶"; } } }
+  requestAnimationFrame(loop); })(last);
+addEventListener("resize",()=>{ buildMap(); charts(); });
+addEventListener("keydown",e=>{ if(e.code==="Space"){e.preventDefault();$("#play").click();} if(e.code==="ArrowRight")seek(Math.min(T-1,st.t+1)); if(e.code==="ArrowLeft")seek(Math.max(0,st.t-1)); });
+
+{ let best=0,bk=-1; for(let t=6*12;t<T;t++){ let c=0; for(let i=0;i<N;i++) if((DATA.D[t][i]+1)/(DATA.S[t][i]+1)>1.5) c++; if(c>bk){bk=c;best=t;} } st.t=best; }
+recompute(); buildMap(); legend();
+seek(st.t);
+// chọn sẵn hex có đề xuất lớn nhất để màn hình không trống
+const first=dec.filter(d=>d.status!=="HOLD").sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta))[0];
+select(first?first.i:0);
+})();
+</script>
+</body>
+</html>

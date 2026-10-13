@@ -47,7 +47,8 @@ class DerivedData:
         return cls(x=apply_zscore(x, scalers["node_mean"], scalers["node_std"]), y=y, b=b, b32=b32,
                    edge_src=edge_src, edge_dst=edge_dst,
                    edge_attr=apply_zscore(edge_attr, scalers["edge_mean"], scalers["edge_std"]),
-                   edge_is_adj=edge_attr[:, IDX_EDGE_ADJ] == 1, edge_ptr=edge_ptr, **kw)
+                   edge_is_adj=edge_attr[:, IDX_EDGE_ADJ] == 1, edge_ptr=edge_ptr,
+                   **kw)
 
     @classmethod
     def load(cls, path: Path, window: int = WINDOW, horizon: int = HORIZON) -> "DerivedData":

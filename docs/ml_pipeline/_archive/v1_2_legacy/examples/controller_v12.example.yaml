@@ -1,0 +1,19 @@
+# Illustrative parameters only; disabled by default. Names match the latest V1.2 report.
+schema_version: '1.0'
+controller_version: pressure_revision_v1_2
+enabled: false
+scope: illustrative_research_only
+required_target_contract: ds_log1p_h5_v1_2
+requested_cap: 0.4
+surge_min: 1.0
+surge_max: 1.5
+invalid_forecast_action: REVIEW_WITH_ZERO_REQUEST
+invalid_bid_action: UPSTREAM_CONTRACT_ERROR
+parameter_status: illustrative_not_calibrated; ds_min requires validation; global
+  bounds are not verified production policy
+ds_ref: 1.2
+ds_min: 0.05
+tau_press: 0.1
+tau_rev: 0.05
+k_press: 0.6
+k_rev: 0.4

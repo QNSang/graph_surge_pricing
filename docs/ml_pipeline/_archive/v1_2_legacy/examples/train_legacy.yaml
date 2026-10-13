@@ -1,0 +1,70 @@
+# Specification example; surge-ml CLI is to be implemented.
+# Source metadata paths are relative to source_root; archive/output paths are relative to repo root.
+schema_version: '1.0'
+profile: legacy_replay
+experiment:
+  name: hcm-legacy-replay
+  study_id: hcm-legacy-replay-001
+  description: Explicit replay of existing source target; not V1.2
+  seed: 0
+data:
+  source_root: data/hcm_data_2
+  expected_source_id: hcm_mock_v2_30d_seed42
+  expected_source_fingerprint: 0e1f4e179ca0c0b8263396463135a7990d7673460a336373a12feaf04122cc06
+  expected_feature_contract: hex40_edge10_v2.1
+  expected_node_count: 61
+  verify_checksums: true
+  dataset_kind: synthetic
+  source_format: legacy_training_npy
+  parquet_inventory_policy: not_applicable
+  expected_source_parquet_sha256: null
+  derivative_storage: legacy_readonly
+  source_layout_id: hcm_v2_parquet_tree_v1
+  manifest_path: meta/manifest.json
+  feature_contract_path: meta/feature_contract.json
+  source_schema_path: schema.yaml
+  legacy_archive_root: data/_archive/hcm_data_2_v2_packed
+legacy:
+  adapter_id: prepared_v2_legacy_replay_v1
+  config_path: pipeline/config.yaml
+  config_sha256: d7e0c9a9629f853d015b7c1ff5e363338eff11a4ec1b3d3379f6e34fba465a7b
+  model_name: gru_gatv2
+  window_steps: 4
+  horizons_minutes:
+  - 5
+  - 10
+  - 15
+  epsilon: 1.0
+  target_contract_id: legacy_smoothed_logratio_h5_h10_h15_eps1
+  controller_compatible: false
+train:
+  device: cpu
+  epochs: 30
+  batch_size: 8
+  eval_batch_size: 8
+  smoke_only: false
+evaluation:
+  access_test_during_training: false
+  primary_metric: val/main/pairacc_all_hex/h10
+  direction: max
+tracking:
+  enabled: true
+  required: true
+  uri_env: MLFLOW_TRACKING_URI
+  experiment_name: graph-surge/legacy-replay/hcm-mock/research
+  client_version: 3.16.1
+  server_version: 3.16.1
+  max_attempts: 4
+  retry_backoff_seconds:
+  - 1
+  - 2
+  - 4
+  on_failure: checkpoint_then_stop
+  manual_logging: true
+artifacts:
+  runs_root: pipeline/runs_legacy_replay
+  save_last: true
+  save_best: true
+registry:
+  auto_register: false
+  allow_production: false

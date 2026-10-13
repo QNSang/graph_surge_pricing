@@ -15,7 +15,8 @@ from numba import njit
  P_REPO_PROB, P_REPO_POW, P_REPO_MIN, P_REPO_IDLE, P_SHIFT_LOGMED, P_SHIFT_SIG, P_MIN_SESS,
  P_SG_GAIN, P_SG_EMA, P_SG_MIN, P_SG_MAX, P_SG_STEP, P_ETA_SAME_F, P_ETA_SAME_E, P_ETA1_F,
  P_ETA1_E, P_ETA2_F, P_ETA2_E, P_ETA_FAR, P_RAIN_SPD, P_RAIN_ETA, P_DISP_LO, P_DISP_HI,
- P_INTRA_R, P_SG_DEAD, N_PARAMS) = range(42)
+ P_INTRA_R, P_SG_DEAD, P_GATE_THETA, P_GATE_BETA, P_GATE_FLOOR, N_PARAMS) = range(45)
+# The no-cars filter (P_GATE_*) defaults to 0 (off); legacy configs follow the original code path.
 
 # cnt indices
 C_ORDERS, C_PEND = 0, 1
@@ -95,12 +96,28 @@ def remove_idle(S, d):
 
 
 @njit(cache=True)
+def _can_release(S, P, h):
+    """Local-supply protection paired with the no-cars filter: hex h lends an idle
+    driver to a neighbour (or lets one reposition or log off) only while its window
+    requests stay within P_GATE_THETA per driver left free after its own waiting
+    requests are served (the same pressure rule as the booking filter)."""
+    free = S.idle_cnt[h] - 1.0
+    for q in range(S.cnt[C_PEND]):
+        if S.o_origin[S.pend[q]] == h:
+            free -= 1.0
+    return S.win_demand[h] <= P[P_GATE_THETA] * max(free, P[P_GATE_FLOOR])
+
+
+@njit(cache=True)
 def try_match(S, P, oid, t):
     if t < S.o_created[oid] or t < S.o_ready[oid] or t > S.o_deadline[oid]:
         return False
     if not np.isnan(S.o_accept[oid]) or not np.isnan(S.o_cancel[oid]):
         return False
     o = S.o_origin[oid]
+    # Intended: the origin hex is never gated. _can_release only protects a hex from
+    # lending its drivers to neighbours; serving its own request with its own driver is
+    # always allowed (the booking filter already thinned demand there).
     if S.idle_cnt[o] > 0:
         h = o
         pk = P[P_PK_SAME_F] + _exp(P[P_PK_SAME_E])
@@ -110,6 +127,8 @@ def try_match(S, P, oid, t):
         for q in range(S.adj_n[o]):
             j = S.adj[o, q]
             c = S.idle_cnt[j]
+            if P[P_GATE_THETA] > 0 and not _can_release(S, P, j):
+                continue
             if c > bc:
                 bc = c
                 best = j
@@ -198,6 +217,8 @@ def shift_mgmt(S, P, te, target):
         k = 0
         for d in range(ND):
             if S.d_state[d] == 1 and te - S.d_online_start[d] >= P[P_MIN_SESS]:
+                if P[P_GATE_THETA] > 0 and not _can_release(S, P, S.d_hex[d]):
+                    continue
                 S.scratch_i[k] = d
                 S.scratch_f[k] = S.d_online_start[d]
                 k += 1
@@ -235,16 +256,74 @@ def match_pending(S, P, te):
 
 
 @njit(cache=True)
+def live_supply(S, t, live):
+    """What the app can show a rider at minute t: idle drivers in the hex not already
+    claimed by waiting requests, plus trips ending there (effective-supply buckets).
+    Drivers whose shift ends before the window closes (or before they arrive) are
+    left out: they go offline at their next idle moment."""
+    H = S.idle_cnt.shape[0]
+    close = np.floor(t / 5.0) * 5.0 + 5.0
+    live[:] = 0.0
+    for d in range(S.d_state.shape[0]):
+        state = S.d_state[d]
+        off = S.d_online_start[d] + S.d_shift[d]
+        if state == 1:
+            if off > close:
+                live[S.d_hex[d]] += 1.0
+        elif state == 3:
+            oid = S.d_order[d]
+            remaining = S.o_pickup[oid] + S.o_est[oid] - t
+            if off <= max(close, t + remaining):
+                continue
+            if remaining <= 5.0:
+                live[S.o_dest[oid]] += 1.0
+            elif remaining <= 10.0:
+                live[S.o_dest[oid]] += 0.5
+            elif remaining <= 15.0:
+                live[S.o_dest[oid]] += 0.2
+    for q in range(S.cnt[C_PEND]):
+        live[S.o_origin[S.pend[q]]] -= 1.0
+    for j in range(H):
+        live[j] = max(live[j], 0.0)
+
+
+@njit(cache=True)
+def _gated_requests(S, P, i, n, p, live):
+    """No-cars filter: a rider who would book at price p sees the live pressure
+    (requests this window + 1) / supply left after the booking. Above P_GATE_THETA
+    the chance to book falls as exp(-beta * excess). Each booking claims one unit
+    of shown supply."""
+    keep = 0
+    for _ in range(n):
+        if np.random.random() >= p:
+            continue
+        # Pressure after this booking claims a unit of shown supply; a hex drained to
+        # zero can still receive one far arrival (weight P_GATE_FLOOR) before ts.
+        press = (S.win_demand[i] + keep + 1.0) / max(live[i] - 1.0, P[P_GATE_FLOOR])
+        if press > P[P_GATE_THETA] and np.random.random() >= np.exp(-P[P_GATE_BETA] * (press - P[P_GATE_THETA])):
+            continue
+        keep += 1
+        live[i] = max(live[i] - 1.0, 0.0)     # an arriving trip is claimed as soon as it lands
+    return keep
+
+
+@njit(cache=True)
 def new_orders(S, P, k, intents_row, cdf, rain, vpeak):
     H = S.idle_cnt.shape[0]
     start = S.cnt[C_ORDERS]
     OC = S.o_origin.shape[0]
+    live = np.zeros(H)
+    if P[P_GATE_THETA] > 0:
+        live_supply(S, float(k), live)
     for i in range(H):
         n = intents_row[i]
         if n == 0:
             continue
         p = np.exp(-P[P_PRICE] * (S.surge[i] - 1.0))
-        keep = np.random.binomial(n, p)
+        if P[P_GATE_THETA] > 0:
+            keep = _gated_requests(S, P, i, n, p, live)
+        else:
+            keep = np.random.binomial(n, p)
         S.win_demand[i] += keep
         for _ in range(keep):
             oid = S.cnt[C_ORDERS]
@@ -302,6 +381,8 @@ def reposition(S, P, te):
                 total = 0.0
                 for q in range(S.adj_n[h]):
                     total += S.surge[S.adj[h, q]] ** P[P_REPO_POW]
+                if P[P_GATE_THETA] > 0 and not _can_release(S, P, h):
+                    total = 0.0
                 if total > 0:
                     r = np.random.random() * total
                     acc = 0.0

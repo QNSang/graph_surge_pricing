@@ -1,0 +1,1333 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:graph-surge:train-config:1.0",
+  "title": "Surge ML training specification configuration",
+  "description": "Strict structural schema; cross-field/hash/index semantics require implementation validators described in chapter03.",
+  "oneOf": [
+    {
+      "$ref": "#/definitions/v12"
+    },
+    {
+      "$ref": "#/definitions/legacy_replay"
+    }
+  ],
+  "definitions": {
+    "v12": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "minLength": 1,
+          "const": "1.0"
+        },
+        "profile": {
+          "type": "string",
+          "minLength": 1,
+          "const": "v12"
+        },
+        "experiment": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "study_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1
+            },
+            "seed": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "name",
+            "study_id",
+            "description",
+            "seed"
+          ]
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source_root": {
+              "type": "string",
+              "minLength": 1
+            },
+            "expected_source_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "expected_source_fingerprint": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[a-f0-9]{64}$",
+              "description": "Recorded fingerprint of the 13 legacy training payload files; not a digest of raw/features/burn_in Parquet."
+            },
+            "expected_feature_contract": {
+              "type": "string",
+              "minLength": 1,
+              "const": "hex40_edge10_v2.1"
+            },
+            "expected_node_count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "verify_checksums": {
+              "type": "boolean",
+              "const": true
+            },
+            "derived_root": {
+              "type": "string",
+              "minLength": 1
+            },
+            "dataset_kind": {
+              "type": "string",
+              "minLength": 1,
+              "const": "synthetic"
+            },
+            "availability_policy": {
+              "type": "string",
+              "minLength": 1,
+              "const": "event_time_only_mock"
+            },
+            "source_format": {
+              "type": "string",
+              "const": "hcm_v2_parquet"
+            },
+            "parquet_inventory_policy": {
+              "type": "string",
+              "const": "raw_features_burn_in_v1"
+            },
+            "expected_source_parquet_sha256": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              ]
+            },
+            "derivative_storage": {
+              "type": "string",
+              "const": "mmap_npy"
+            },
+            "source_layout_id": {
+              "type": "string",
+              "const": "hcm_v2_parquet_tree_v1"
+            },
+            "manifest_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "feature_contract_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "source_schema_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "legacy_archive_root": {
+              "type": "null",
+              "const": null
+            }
+          },
+          "required": [
+            "source_root",
+            "expected_source_id",
+            "expected_source_fingerprint",
+            "expected_feature_contract",
+            "expected_node_count",
+            "verify_checksums",
+            "derived_root",
+            "dataset_kind",
+            "availability_policy",
+            "source_format",
+            "parquet_inventory_policy",
+            "expected_source_parquet_sha256",
+            "derivative_storage",
+            "source_layout_id",
+            "manifest_path",
+            "feature_contract_path",
+            "source_schema_path",
+            "legacy_archive_root"
+          ]
+        },
+        "features": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "contract_id": {
+              "type": "string",
+              "minLength": 1,
+              "const": "hex29_edge10_v1_2"
+            },
+            "node_profile": {
+              "type": "string",
+              "minLength": 1,
+              "const": "context29"
+            },
+            "selected_indices": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 1,
+              "const": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                28
+              ]
+            },
+            "normalization_id": {
+              "type": "string",
+              "minLength": 1,
+              "const": "zscore_train_union_v1"
+            },
+            "std_floor": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "contract_id",
+            "node_profile",
+            "selected_indices",
+            "normalization_id",
+            "std_floor"
+          ]
+        },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "contract_id": {
+              "type": "string",
+              "minLength": 1,
+              "const": "ds_log1p_h5_v1_2"
+            },
+            "window_steps": {
+              "type": "integer",
+              "const": 12
+            },
+            "horizon_minutes": {
+              "type": "integer",
+              "const": 5
+            },
+            "epsilon": {
+              "type": "null",
+              "const": null
+            },
+            "zero_supply_policy": {
+              "type": "string",
+              "minLength": 1,
+              "const": "mask_nonpositive"
+            },
+            "output_dtype": {
+              "type": "string",
+              "minLength": 1,
+              "const": "float32"
+            }
+          },
+          "required": [
+            "contract_id",
+            "window_steps",
+            "horizon_minutes",
+            "epsilon",
+            "zero_supply_policy",
+            "output_dtype"
+          ]
+        },
+        "split": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "train_days": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 1,
+              "const": [
+                1,
+                21
+              ]
+            },
+            "val_days": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 1,
+              "const": [
+                22,
+                25
+              ]
+            },
+            "test_days": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 1,
+              "const": [
+                26,
+                30
+              ]
+            },
+            "step_minutes": {
+              "type": "integer",
+              "const": 5
+            },
+            "purge_minutes": {
+              "type": "integer",
+              "const": 30
+            },
+            "history_policy": {
+              "type": "string",
+              "minLength": 1,
+              "const": "direct_window_within_split_past_rolling_context_allowed"
+            }
+          },
+          "required": [
+            "train_days",
+            "val_days",
+            "test_days",
+            "step_minutes",
+            "purge_minutes",
+            "history_policy"
+          ]
+        },
+        "graph": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "contract_id": {
+              "type": "string",
+              "minLength": 1,
+              "const": "directed_relations_self_v1"
+            },
+            "raw_edge_dim": {
+              "type": "integer",
+              "const": 10
+            },
+            "internal_edge_dim": {
+              "type": "integer",
+              "const": 12
+            },
+            "add_reverse": {
+              "type": "boolean",
+              "const": false
+            },
+            "self_loop_policy": {
+              "type": "string",
+              "minLength": 1,
+              "const": "one_synthetic_per_node_preserve_od_self"
+            },
+            "pyg_add_self_loops": {
+              "type": "boolean",
+              "const": false
+            }
+          },
+          "required": [
+            "contract_id",
+            "raw_edge_dim",
+            "internal_edge_dim",
+            "add_reverse",
+            "self_loop_policy",
+            "pyg_add_self_loops"
+          ]
+        },
+        "model": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "model_id": {
+              "type": "string",
+              "minLength": 1,
+              "const": "dual_gru_gatv2_h5_v1_2"
+            },
+            "backend": {
+              "type": "string",
+              "minLength": 1,
+              "const": "pyg_gatv2"
+            },
+            "gru_hidden": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "gat_layers": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "gat_heads": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "head_hidden": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "dropout": {
+              "type": "number",
+              "minimum": 0,
+              "exclusiveMaximum": 1
+            },
+            "output_domain": {
+              "type": "string",
+              "minLength": 1,
+              "const": "softplus_log1p_v1"
+            },
+            "softplus_beta": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "model_id",
+            "backend",
+            "gru_hidden",
+            "gat_layers",
+            "gat_heads",
+            "head_hidden",
+            "dropout",
+            "output_domain",
+            "softplus_beta"
+          ]
+        },
+        "loss": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "smooth_l1_beta": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "lambda_local": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "lambda_spatial": {
+              "type": "number",
+              "const": 0.0
+            }
+          },
+          "required": [
+            "smooth_l1_beta",
+            "lambda_local",
+            "lambda_spatial"
+          ]
+        },
+        "train": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "device": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(cpu|cuda:[0-9]+)$"
+            },
+            "precision": {
+              "type": "string",
+              "minLength": 1,
+              "const": "float32"
+            },
+            "optimizer": {
+              "type": "string",
+              "minLength": 1,
+              "const": "adamw"
+            },
+            "batch_size": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "eval_batch_size": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "epochs": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "learning_rate": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "weight_decay": {
+              "type": "number",
+              "minimum": 0
+            },
+            "grad_clip_norm": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "patience": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "scheduler": {
+              "type": "string",
+              "minLength": 1,
+              "enum": [
+                "none",
+                "cosine",
+                "reduce_on_plateau"
+              ]
+            },
+            "resume_boundary": {
+              "type": "string",
+              "minLength": 1,
+              "const": "epoch"
+            }
+          },
+          "required": [
+            "device",
+            "precision",
+            "optimizer",
+            "batch_size",
+            "eval_batch_size",
+            "epochs",
+            "learning_rate",
+            "weight_decay",
+            "grad_clip_norm",
+            "patience",
+            "scheduler",
+            "resume_boundary"
+          ]
+        },
+        "evaluation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "primary_metric": {
+              "type": "string",
+              "minLength": 1,
+              "const": "val/graph/mae_q/h5"
+            },
+            "direction": {
+              "type": "string",
+              "minLength": 1,
+              "const": "min"
+            },
+            "tie_tolerance": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tie_break": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1,
+              "const": [
+                "local_mae_q",
+                "earliest_epoch"
+              ]
+            },
+            "baselines": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1,
+              "const": [
+                "persistence_true_ds_h5_v1",
+                "gru_context29_h5_v1",
+                "gru_aggregate40_h5_v1",
+                "lgbm_context29_h5_v1",
+                "lgbm_aggregate40_h5_v1"
+              ]
+            },
+            "seeds": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "access_test_during_training": {
+              "type": "boolean",
+              "const": false
+            },
+            "prediction_valid_fraction_min": {
+              "type": "number",
+              "const": 1.0
+            },
+            "max_invalid_target_fraction": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              ]
+            },
+            "local_regression_relative_tolerance": {
+              "type": "number",
+              "minimum": 0
+            },
+            "local_regression_absolute_tolerance": {
+              "type": "number",
+              "minimum": 0
+            },
+            "baseline_error_floor": {
+              "type": "number",
+              "minimum": 0
+            },
+            "graph_min_relative_improvement": {
+              "type": "number",
+              "minimum": 0
+            },
+            "pairwise": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "population": {
+                  "type": "string",
+                  "minLength": 1,
+                  "const": "all_hex_unordered"
+                },
+                "margin_log1p": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "min_future_volume": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "enabled",
+                "population",
+                "margin_log1p",
+                "min_future_volume"
+              ]
+            }
+          },
+          "required": [
+            "primary_metric",
+            "direction",
+            "tie_tolerance",
+            "tie_break",
+            "baselines",
+            "seeds",
+            "access_test_during_training",
+            "prediction_valid_fraction_min",
+            "max_invalid_target_fraction",
+            "local_regression_relative_tolerance",
+            "local_regression_absolute_tolerance",
+            "baseline_error_floor",
+            "graph_min_relative_improvement",
+            "pairwise"
+          ]
+        },
+        "tracking": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "const": true
+            },
+            "required": {
+              "type": "boolean",
+              "const": true
+            },
+            "uri_env": {
+              "type": "string",
+              "minLength": 1,
+              "const": "MLFLOW_TRACKING_URI"
+            },
+            "experiment_name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "client_version": {
+              "type": "string",
+              "minLength": 1,
+              "const": "3.16.1"
+            },
+            "server_version": {
+              "type": "string",
+              "minLength": 1,
+              "const": "3.16.1"
+            },
+            "max_attempts": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "retry_backoff_seconds": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 1
+            },
+            "on_failure": {
+              "type": "string",
+              "minLength": 1,
+              "const": "checkpoint_then_stop"
+            },
+            "manual_logging": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "enabled",
+            "required",
+            "uri_env",
+            "experiment_name",
+            "client_version",
+            "server_version",
+            "max_attempts",
+            "retry_backoff_seconds",
+            "on_failure",
+            "manual_logging"
+          ]
+        },
+        "artifacts": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "runs_root": {
+              "type": "string",
+              "minLength": 1
+            },
+            "save_last": {
+              "type": "boolean",
+              "const": true
+            },
+            "save_best": {
+              "type": "boolean",
+              "const": true
+            },
+            "eager_bundle": {
+              "type": "boolean",
+              "const": true
+            },
+            "pt2": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "device": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^(cpu|cuda:[0-9]+)$"
+                },
+                "dynamic_batch": {
+                  "type": "boolean"
+                },
+                "dynamic_edges": {
+                  "type": "boolean"
+                },
+                "test_batch_sizes": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  },
+                  "minItems": 1
+                },
+                "node_counts": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  },
+                  "minItems": 1
+                },
+                "rtol": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "atol": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "enabled",
+                "device",
+                "dynamic_batch",
+                "dynamic_edges",
+                "test_batch_sizes",
+                "node_counts",
+                "rtol",
+                "atol"
+              ]
+            }
+          },
+          "required": [
+            "runs_root",
+            "save_last",
+            "save_best",
+            "eager_bundle",
+            "pt2"
+          ]
+        },
+        "analysis": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "plugins": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "enum": [
+                  "permutation_importance",
+                  "profiling",
+                  "graph_snapshot",
+                  "shap",
+                  "autogluon",
+                  "tsfresh",
+                  "quarto"
+                ]
+              },
+              "minItems": 0
+            },
+            "optional": {
+              "type": "boolean",
+              "const": true
+            },
+            "split": {
+              "type": "string",
+              "minLength": 1,
+              "const": "val"
+            },
+            "max_samples": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "timeout_seconds": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "plugins",
+            "optional",
+            "split",
+            "max_samples",
+            "timeout_seconds"
+          ]
+        },
+        "registry": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "registered_model": {
+              "type": "string",
+              "minLength": 1,
+              "const": "surge-forecast-v12-research"
+            },
+            "auto_register": {
+              "type": "boolean",
+              "const": false
+            },
+            "allow_production": {
+              "type": "boolean",
+              "const": false
+            }
+          },
+          "required": [
+            "registered_model",
+            "auto_register",
+            "allow_production"
+          ]
+        },
+        "runtime": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "data_loader_workers": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "cpu_threads": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_concurrent_trials": {
+              "type": "integer",
+              "const": 1
+            },
+            "deterministic": {
+              "type": "boolean"
+            },
+            "heartbeat_seconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "stale_seconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "minimum_free_disk_gib": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "data_loader_workers",
+            "cpu_threads",
+            "max_concurrent_trials",
+            "deterministic",
+            "heartbeat_seconds",
+            "stale_seconds",
+            "minimum_free_disk_gib"
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "profile",
+        "experiment",
+        "data",
+        "features",
+        "target",
+        "split",
+        "graph",
+        "model",
+        "loss",
+        "train",
+        "evaluation",
+        "tracking",
+        "artifacts",
+        "analysis",
+        "registry",
+        "runtime"
+      ]
+    },
+    "legacy_replay": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "minLength": 1,
+          "const": "1.0"
+        },
+        "profile": {
+          "type": "string",
+          "minLength": 1,
+          "const": "legacy_replay"
+        },
+        "experiment": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "study_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1
+            },
+            "seed": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "name",
+            "study_id",
+            "description",
+            "seed"
+          ]
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source_root": {
+              "type": "string",
+              "minLength": 1
+            },
+            "expected_source_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "expected_source_fingerprint": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[a-f0-9]{64}$",
+              "description": "Recorded fingerprint of the 13 legacy training payload files; not a digest of raw/features/burn_in Parquet."
+            },
+            "expected_feature_contract": {
+              "type": "string",
+              "minLength": 1,
+              "const": "hex40_edge10_v2.1"
+            },
+            "expected_node_count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "verify_checksums": {
+              "type": "boolean",
+              "const": true
+            },
+            "dataset_kind": {
+              "type": "string",
+              "minLength": 1,
+              "const": "synthetic"
+            },
+            "source_format": {
+              "type": "string",
+              "const": "legacy_training_npy"
+            },
+            "parquet_inventory_policy": {
+              "type": "string",
+              "const": "not_applicable"
+            },
+            "expected_source_parquet_sha256": {
+              "type": "null",
+              "const": null
+            },
+            "derivative_storage": {
+              "type": "string",
+              "const": "legacy_readonly"
+            },
+            "source_layout_id": {
+              "type": "string",
+              "const": "hcm_v2_parquet_tree_v1"
+            },
+            "manifest_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "feature_contract_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "source_schema_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "legacy_archive_root": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "source_root",
+            "expected_source_id",
+            "expected_source_fingerprint",
+            "expected_feature_contract",
+            "expected_node_count",
+            "verify_checksums",
+            "dataset_kind",
+            "source_format",
+            "parquet_inventory_policy",
+            "expected_source_parquet_sha256",
+            "derivative_storage",
+            "source_layout_id",
+            "manifest_path",
+            "feature_contract_path",
+            "source_schema_path",
+            "legacy_archive_root"
+          ]
+        },
+        "legacy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "adapter_id": {
+              "type": "string",
+              "minLength": 1,
+              "const": "prepared_v2_legacy_replay_v1"
+            },
+            "config_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "config_sha256": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "model_name": {
+              "type": "string",
+              "minLength": 1,
+              "enum": [
+                "logds",
+                "logds_eff",
+                "lgbm",
+                "gru_only",
+                "gru_gatv2"
+              ]
+            },
+            "window_steps": {
+              "type": "integer",
+              "const": 4
+            },
+            "horizons_minutes": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 1,
+              "const": [
+                5,
+                10,
+                15
+              ]
+            },
+            "epsilon": {
+              "type": "number",
+              "const": 1.0
+            },
+            "target_contract_id": {
+              "type": "string",
+              "minLength": 1,
+              "const": "legacy_smoothed_logratio_h5_h10_h15_eps1"
+            },
+            "controller_compatible": {
+              "type": "boolean",
+              "const": false
+            }
+          },
+          "required": [
+            "adapter_id",
+            "config_path",
+            "config_sha256",
+            "model_name",
+            "window_steps",
+            "horizons_minutes",
+            "epsilon",
+            "target_contract_id",
+            "controller_compatible"
+          ]
+        },
+        "train": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "device": {
+              "type": "string",
+              "minLength": 1,
+              "const": "cpu"
+            },
+            "epochs": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "batch_size": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "eval_batch_size": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "smoke_only": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "device",
+            "epochs",
+            "batch_size",
+            "eval_batch_size",
+            "smoke_only"
+          ]
+        },
+        "evaluation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "access_test_during_training": {
+              "type": "boolean",
+              "const": false
+            },
+            "primary_metric": {
+              "type": "string",
+              "minLength": 1,
+              "const": "val/main/pairacc_all_hex/h10"
+            },
+            "direction": {
+              "type": "string",
+              "minLength": 1,
+              "const": "max"
+            }
+          },
+          "required": [
+            "access_test_during_training",
+            "primary_metric",
+            "direction"
+          ]
+        },
+        "tracking": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "const": true
+            },
+            "required": {
+              "type": "boolean",
+              "const": true
+            },
+            "uri_env": {
+              "type": "string",
+              "minLength": 1,
+              "const": "MLFLOW_TRACKING_URI"
+            },
+            "experiment_name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "client_version": {
+              "type": "string",
+              "minLength": 1,
+              "const": "3.16.1"
+            },
+            "server_version": {
+              "type": "string",
+              "minLength": 1,
+              "const": "3.16.1"
+            },
+            "max_attempts": {
+              "type": "integer"
+            },
+            "retry_backoff_seconds": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 1
+            },
+            "on_failure": {
+              "type": "string",
+              "minLength": 1,
+              "const": "checkpoint_then_stop"
+            },
+            "manual_logging": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "enabled",
+            "required",
+            "uri_env",
+            "experiment_name",
+            "client_version",
+            "server_version",
+            "max_attempts",
+            "retry_backoff_seconds",
+            "on_failure",
+            "manual_logging"
+          ]
+        },
+        "artifacts": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "runs_root": {
+              "type": "string",
+              "minLength": 1
+            },
+            "save_last": {
+              "type": "boolean",
+              "const": true
+            },
+            "save_best": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "runs_root",
+            "save_last",
+            "save_best"
+          ]
+        },
+        "registry": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "auto_register": {
+              "type": "boolean",
+              "const": false
+            },
+            "allow_production": {
+              "type": "boolean",
+              "const": false
+            }
+          },
+          "required": [
+            "auto_register",
+            "allow_production"
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "profile",
+        "experiment",
+        "data",
+        "legacy",
+        "train",
+        "evaluation",
+        "tracking",
+        "artifacts",
+        "registry"
+      ]
+    }
+  }
+}

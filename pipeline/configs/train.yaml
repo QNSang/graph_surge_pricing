@@ -1,17 +1,22 @@
-# surge-ml training config (docs/ml_pipeline/03 §5). Relative paths resolve against this file's directory.
-# Contract constants (W=4, split bounds, column routing) live in src/surge_ml/features.py.
-study_id: hcm-v12-w4-003
+# CPU study on a 20-day slice of the V3 90-day dataset (days 36-55). Do not modify data/CURRENT.json or old runs.
+# Train 36-49 = two full weeks (venue 36/37/42, rain 40/46); val 50-52 (Mon-Wed); test 53-55 (venue 53, rain 54, Sat 55).
+# Days before 36 stay available as history (60-min windows, seasonal_naive y[k-288]).
+study_id: hcm-v3-cpu-20d-w4h5-002  # 002: scaler fit on train days 36-49 only (001 fit on days 1-49)
 seeds: [42, 43, 44]
-variants: [persistence, seasonal_naive, lgbm37, lgbm40, gru_local37, gru_pointwise40, gru_strict32,
-           gru_gatv2_40, gru_gatv2_40_no_od, gru_gatv2_40_no_adj]
+variants: [persistence, seasonal_naive, gru_gatv2_40]
 runs_root: ../runs
 
 data:
-  current: ../../data/CURRENT.json  # release pointer; gives the dataset path (or set source_root instead)
+  source_root: ../../data/hcm_mock_v3_90d_seed42_temporal_od
   derived_root: ../../data/derived
-  dataset_id: hcm_mock_v2_90d_seed42_bounded_tail  # must match CURRENT.json; bump study_id when it changes
-  split_days: null  # null = manifest suggested_split_days_inclusive (90 days: train 1-63, val 64-76, test 77-90)
+  dataset_id: hcm_mock_v3_90d_seed42_temporal_od
+  split_days:
+    train: [36, 49]
+    val: [50, 52]
+    test: [53, 55]
   std_floor: 1.0e-6
+  window_steps: 4
+  horizon_steps: 1
 
 model:
   gru_hidden: 64
@@ -26,7 +31,7 @@ loss:
   lambda_local: 0.3
 
 train:
-  device: auto
+  device: cpu
   batch_size: 32
   eval_batch_size: 128
   epochs: 30
@@ -37,42 +42,3 @@ train:
   scheduler: cosine
   tie_tolerance: 1.0e-6
   smoke_batches: 5
-
-# LightGBM comparators (lgbm37, lgbm40). Objective regression_l2 is fixed in models/lgbm.py.
-lgbm:
-  learning_rate: 0.05
-  num_leaves: 63
-  min_child_samples: 50
-  subsample: 0.8
-  colsample_bytree: 0.8
-  n_estimators: 1000
-  early_stopping: 30
-  smoke_estimators: 20
-
-# Per-variant tuning, merged over the shared model/loss/train/lgbm sections above. Only the overridden
-# variant's trials become stale. Find values with `surge-ml sweep`, e.g.:
-#   surge-ml sweep --variant gru_gatv2_40 --grid model.gru_hidden=32,64,96 --grid train.lr=1e-3,5e-4
-overrides: {}
-#  gru_gatv2_40: {model: {gru_hidden: 96}, train: {lr: 5.0e-4}}
-#  lgbm40: {lgbm: {num_leaves: 127}}
-
-tracking:
-  enabled: true
-  experiment: graph_surge_pricing  # prefix; each train/benchmark run creates graph_surge_pricing_<YYYYmmdd-HHMMSS>
-
-# Demo/shadow-only policy values from technical_report.md §11. They are not calibrated
-# and are deliberately rejected as production-ready by the config model.
-controller:
-  execution_mode: demo
-  policy_version: w4_pressure_revision_demo_v1
-  reference_version: smoothed_q_reference_demo_v1
-  calibrated: false
-  reference_q: 1.2
-  q_min: 1.0e-6
-  pressure_dead_zone: 0.10
-  revision_dead_zone: 0.05
-  pressure_gain: 0.60
-  revision_gain: 0.40
-  max_requested_delta: 0.40
-  surge_min: 1.0
-  surge_max: 3.0

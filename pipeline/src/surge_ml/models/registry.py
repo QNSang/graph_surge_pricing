@@ -9,7 +9,6 @@ from surge_ml.config import Config
 from surge_ml.data.dataset import DerivedData
 from surge_ml.evaluation.metrics import evaluate_predictions
 from surge_ml.features import Variant
-from surge_ml.models import lgbm
 from surge_ml.models.baselines import BASELINES
 from surge_ml.models.dual_gru_gatv2 import build_model
 from surge_ml.training import checkpoint
@@ -20,7 +19,7 @@ class Fitted(NamedTuple):
     preds: dict[str, np.ndarray]  # val predictions per head, [K, N]
     ks: np.ndarray  # val cutoffs actually predicted
     history: list[dict]  # per-epoch rows; empty for untrained / non-epoch models
-    info: dict  # merged into trial_result.json: n_params, best_epoch, n_trees, val (if already scored), ...
+    info: dict  # merged into trial_result.json: n_params, best_epoch, val (if already scored), ...
 
 
 class Adapter(Protocol):
@@ -48,23 +47,6 @@ class BaselineAdapter:
         return BASELINES[variant.family](data, ks), ks
 
 
-class LgbmAdapter:
-    """models/lgbm.py; dừng sớm theo val, lưu model.txt."""
-
-    def fit(self, cfg, data, variant, seed, out, tracker, resume, sha) -> Fitted:
-        out.mkdir(parents=True, exist_ok=True)
-        booster = lgbm.fit(data, variant, data.candidates("train"), data.candidates("val"), seed, out, cfg.lgbm,
-                           smoke=cfg.train.limit_batches is not None)
-        tracker.log_artifact(out / lgbm.MODEL_FILE)
-        ks = data.candidates("val")
-        return Fitted(lgbm.predict(booster, data, variant, ks), ks, [],
-                      {"n_params": None, "n_trees": booster.num_trees(), "best_epoch": booster.best_iteration or None})
-
-    def predict(self, cfg, data, variant, out, split):
-        ks = data.candidates(split)
-        return lgbm.predict(lgbm.load(out), data, variant, ks), ks
-
-
 class GruAdapter:
     """SurgeNet (GRU, tuỳ chọn head GATv2) huấn luyện bằng Trainer; best.pt giữ epoch val tốt nhất."""
 
@@ -89,7 +71,5 @@ class GruAdapter:
 ADAPTERS: dict[str, Adapter] = {
     "persistence": BaselineAdapter(),
     "seasonal": BaselineAdapter(),
-    "lgbm": LgbmAdapter(),
     "gru": GruAdapter(),
-    "flow_gru": GruAdapter(),
 }

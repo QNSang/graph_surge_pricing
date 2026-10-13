@@ -6,7 +6,7 @@ import yaml
 
 from surge_ml.config import load_config
 from surge_ml.data.dataset import DerivedData
-from surge_ml.data.scaler import fit_zscore
+from surge_ml.data.scaler import fit_scalers
 from surge_ml.data.target import build_targets
 from surge_ml.features import SNAPSHOTS_PER_DAY, split_bounds
 
@@ -32,10 +32,7 @@ def synthetic_data(n_nodes: int = 4, seed: int = 0) -> DerivedData:
     attr = rng.random((per_k * N_SNAPSHOTS, 10)).astype(np.float32)
     attr[:, :2] = np.tile(np.array(rows, np.float32), (N_SNAPSHOTS, 1))
     ptr = np.arange(N_SNAPSHOTS + 1, dtype=np.int64) * per_k
-    train_end = SPLITS["train"][1]
-    nm, ns = fit_zscore(x[:train_end], 1e-6)
-    em, es = fit_zscore(attr[: ptr[train_end]], 1e-6)
-    scalers = {"node_mean": nm, "node_std": ns, "edge_mean": em, "edge_std": es}
+    scalers = fit_scalers(x, attr, ptr, SPLITS["train"], 1e-6)
     return DerivedData.from_raw(x, y, b, b32, edge_src, edge_dst, attr, ptr, scalers, splits=SPLITS)
 
 

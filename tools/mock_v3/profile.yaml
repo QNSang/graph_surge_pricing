@@ -1,0 +1,25 @@
+# Research calibration, NOT an empirical fit to real HCMC operations.
+# Kept separate from V2 so all existing V2 releases and their configs remain unchanged.
+version: v3_temporal_od_1
+case: temporal_od
+adjustments:
+  demand.scale: 2.35
+  demand.base_per_min.office: 0.36
+  demand.base_per_min.residential: 0.32
+  demand.base_per_min.suburb: 0.09
+  demand.base_per_min.airport: 0.09
+  demand.base_per_min.venue: 0.35
+  demand.gamma_k: 18
+  demand.no_cars_filter.theta: 8.0
+  demand.no_cars_filter.beta: 5.0
+  demand.no_cars_filter.floor: 0.2
+  drivers.online_scale: 0.50
+  drivers.reposition.prob: 0.40
+  drivers.reposition.power: 4.0
+temporal_demand:
+  rho: 0.88
+  neighbor_diffusion: 0.28
+  log_intensity_sigma: 0.42
+# No predetermined shortage/zero-rate targets: evaluate after simulation.
+# The V2 no-cars admission filter / local release guard remains enabled;
+# downstream point-in-time feature contract stays hex40_edge10_v2.1.

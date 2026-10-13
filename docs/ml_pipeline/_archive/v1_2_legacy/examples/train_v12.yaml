@@ -1,0 +1,199 @@
+# Specification example; surge-ml CLI is to be implemented.
+# Source metadata paths are relative to source_root; archive/output paths are relative to repo root.
+schema_version: '1.0'
+profile: v12
+experiment:
+  name: hcm-v12-dual-head
+  study_id: hcm-v12-pilot-001
+  description: Synthetic research only; W12 H5 exact ratio target
+  seed: 42
+data:
+  source_root: data/hcm_data_2
+  expected_source_id: hcm_mock_v2_30d_seed42
+  expected_source_fingerprint: 0e1f4e179ca0c0b8263396463135a7990d7673460a336373a12feaf04122cc06
+  expected_feature_contract: hex40_edge10_v2.1
+  expected_node_count: 61
+  verify_checksums: true
+  derived_root: data/derived
+  dataset_kind: synthetic
+  availability_policy: event_time_only_mock
+  source_format: hcm_v2_parquet
+  parquet_inventory_policy: raw_features_burn_in_v1
+  expected_source_parquet_sha256: null
+  derivative_storage: mmap_npy
+  source_layout_id: hcm_v2_parquet_tree_v1
+  manifest_path: meta/manifest.json
+  feature_contract_path: meta/feature_contract.json
+  source_schema_path: schema.yaml
+  legacy_archive_root: null
+features:
+  contract_id: hex29_edge10_v1_2
+  node_profile: context29
+  selected_indices:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  - 12
+  - 13
+  - 14
+  - 15
+  - 16
+  - 17
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
+  - 28
+  normalization_id: zscore_train_union_v1
+  std_floor: 1.0e-06
+target:
+  contract_id: ds_log1p_h5_v1_2
+  window_steps: 12
+  horizon_minutes: 5
+  epsilon: null
+  zero_supply_policy: mask_nonpositive
+  output_dtype: float32
+split:
+  train_days:
+  - 1
+  - 21
+  val_days:
+  - 22
+  - 25
+  test_days:
+  - 26
+  - 30
+  step_minutes: 5
+  purge_minutes: 30
+  history_policy: direct_window_within_split_past_rolling_context_allowed
+graph:
+  contract_id: directed_relations_self_v1
+  raw_edge_dim: 10
+  internal_edge_dim: 12
+  add_reverse: false
+  self_loop_policy: one_synthetic_per_node_preserve_od_self
+  pyg_add_self_loops: false
+model:
+  model_id: dual_gru_gatv2_h5_v1_2
+  backend: pyg_gatv2
+  gru_hidden: 64
+  gat_layers: 2
+  gat_heads: 4
+  head_hidden: 32
+  dropout: 0.1
+  output_domain: softplus_log1p_v1
+  softplus_beta: 1.0
+loss:
+  smooth_l1_beta: 1.0
+  lambda_local: 1.0
+  lambda_spatial: 0.0
+train:
+  device: cpu
+  precision: float32
+  optimizer: adamw
+  batch_size: 8
+  eval_batch_size: 8
+  epochs: 50
+  learning_rate: 0.0003
+  weight_decay: 0.0
+  grad_clip_norm: 1.0
+  patience: 10
+  scheduler: none
+  resume_boundary: epoch
+evaluation:
+  primary_metric: val/graph/mae_q/h5
+  direction: min
+  tie_tolerance: 1.0e-10
+  tie_break:
+  - local_mae_q
+  - earliest_epoch
+  baselines:
+  - persistence_true_ds_h5_v1
+  - gru_context29_h5_v1
+  - gru_aggregate40_h5_v1
+  - lgbm_context29_h5_v1
+  - lgbm_aggregate40_h5_v1
+  seeds:
+  - 42
+  - 43
+  - 44
+  access_test_during_training: false
+  prediction_valid_fraction_min: 1.0
+  max_invalid_target_fraction: null
+  local_regression_relative_tolerance: 0.05
+  local_regression_absolute_tolerance: 0.01
+  baseline_error_floor: 1.0e-08
+  graph_min_relative_improvement: 0.0
+  pairwise:
+    enabled: true
+    population: all_hex_unordered
+    margin_log1p: 0.1
+    min_future_volume: 10.0
+tracking:
+  enabled: true
+  required: true
+  uri_env: MLFLOW_TRACKING_URI
+  experiment_name: graph-surge/v12/hcm-mock/research
+  client_version: 3.16.1
+  server_version: 3.16.1
+  max_attempts: 4
+  retry_backoff_seconds:
+  - 1
+  - 2
+  - 4
+  on_failure: checkpoint_then_stop
+  manual_logging: true
+artifacts:
+  runs_root: pipeline/runs
+  save_last: true
+  save_best: true
+  eager_bundle: true
+  pt2:
+    enabled: false
+    device: cpu
+    dynamic_batch: true
+    dynamic_edges: true
+    test_batch_sizes:
+    - 1
+    - 2
+    - 8
+    node_counts:
+    - 61
+    rtol: 1.0e-05
+    atol: 1.0e-06
+analysis:
+  plugins:
+  - permutation_importance
+  - profiling
+  - graph_snapshot
+  optional: true
+  split: val
+  max_samples: 512
+  timeout_seconds: 600
+registry:
+  registered_model: surge-forecast-v12-research
+  auto_register: false
+  allow_production: false
+runtime:
+  data_loader_workers: 0
+  cpu_threads: 2
+  max_concurrent_trials: 1
+  deterministic: true
+  heartbeat_seconds: 30
+  stale_seconds: 180
+  minimum_free_disk_gib: 2

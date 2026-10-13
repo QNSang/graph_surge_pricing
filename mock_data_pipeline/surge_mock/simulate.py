@@ -40,6 +40,10 @@ def build_params(cfg):
     P[K.P_SG_GAIN], P[K.P_SG_EMA] = sg["gain"], sg["ema"]
     P[K.P_SG_MIN], P[K.P_SG_MAX], P[K.P_SG_STEP] = sg["min"], sg["max"], sg["step"]
     P[K.P_SG_DEAD] = sg.get("deadzone", 0.0)
+    gate = d.get("no_cars_filter", {})
+    P[K.P_GATE_THETA] = gate.get("theta", 0.0)
+    P[K.P_GATE_BETA] = gate.get("beta", 0.0)
+    P[K.P_GATE_FLOOR] = gate.get("floor", 0.2)
     P[K.P_ETA_SAME_F], P[K.P_ETA_SAME_E] = e["same_hex"]["fixed"], e["same_hex"]["exp_mean"]
     P[K.P_ETA1_F], P[K.P_ETA1_E] = e["ring1"]["fixed"], e["ring1"]["exp_mean"]
     P[K.P_ETA2_F], P[K.P_ETA2_E] = e["ring2"]["fixed"], e["ring2"]["exp_mean"]
