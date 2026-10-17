@@ -1,3 +1,2 @@
-"""surge_ml: pipeline dự báo surge GRU + GATv2 hai nhánh (nghiên cứu, dữ liệu giả lập)."""
-
+"""DuoCast forecasting and fail-closed GGSO decisions. No static geo encoder."""
 __version__ = "0.1.0"

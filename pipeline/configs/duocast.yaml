@@ -1,0 +1,38 @@
+# No supplied marketplace data yet. Use `surge-ml demo` for an isolated synthetic run.
+contract_version: duocast_ds_h5_v1
+study_id: duocast-v1
+seeds: [42, 43, 44]
+variants: [lgbm_local, gru, gru_spatial, gru_mobility, duocast]
+output_dir: ../runs/duocast/study-v1
+data:
+  market: ../../data/duocast/market.parquet
+  spatial: ../../data/duocast/spatial_edges.parquet
+  mobility: ../../data/duocast/od.parquet
+  mobility_snapshots: ../../data/duocast/mobility_snapshots.parquet
+  metadata: ../../data/duocast/meta.json
+  history: 12
+  horizon: 1
+  validate_h3: true
+  availability: strict
+  split_mode: strict
+  dynamic_features: [demand_5m, idle_supply_t, backlog_t, eta_sec_t, base_surge]
+  mobility_features: [flow_5m, eta_min]
+  train_fraction: 0.70
+  val_fraction: 0.15
+model:
+  hidden: 64
+  heads: 2
+  head_hidden: 32
+  dropout: 0.1
+train:
+  device: auto
+  epochs: 50
+  batch_size: 16
+  eval_batch_size: 64
+  lr: 0.001
+  weight_decay: 0.0001
+  grad_clip: 1.0
+  patience: 8
+  huber_delta: 1.0
+  num_threads: 2
+  lgbm_rounds: 500

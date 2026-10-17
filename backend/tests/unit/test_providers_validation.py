@@ -1,5 +1,5 @@
 import json
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
@@ -8,7 +8,7 @@ import pytest
 from app.core.config import get_policy
 from app.providers.base import OUTPUT_SCHEMA_VERSION, HexInput, ProviderInfo, RecommendationBatch, SnapshotInput
 from app.providers.mock_provider import MockProvider
-from app.providers.precomputed_provider import PrecomputedProvider
+from app.providers.precomputed_provider import PrecomputedProvider, PrecomputedProviderError
 from app.services.validation_service import validate_batch
 
 TZ = ZoneInfo("Asia/Ho_Chi_Minh")
@@ -138,3 +138,29 @@ def test_precomputed_provider_maps_fixture(tmp_path, policy):
     assert rows["a"].action == "INCREASE" and rows["a"].surge_proposed == Decimal("1.40")
     assert rows["a"].reason_codes == ["PRESSURE_REVISION"]
     assert rows["b"].action == "REVIEW"
+
+
+def _write_proposal(path, cutoff_local, fingerprint="fp"):
+    payload = {"schema_version": "surge_proposal_v1", "cutoff_ts_local": cutoff_local,
+               "source_timezone": "Asia/Ho_Chi_Minh", "data_fingerprint": fingerprint, "proposals": []}
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def test_precomputed_provider_date_range_uses_local_days(tmp_path, policy):
+    # 23:55 local on Jan 6 is still Jan 6 in Asia/Ho_Chi_Minh although it is 16:55 UTC.
+    _write_proposal(tmp_path / "proposals_k1.json", "2026-01-05T00:00:00")
+    _write_proposal(tmp_path / "proposals_k2.json", "2026-01-06T23:55:00")
+    provider = PrecomputedProvider(tmp_path, policy.limits.precision)
+    assert provider.date_range("Asia/Ho_Chi_Minh") == (date(2026, 1, 5), date(2026, 1, 6))
+    assert provider.available_cutoffs()[0] == datetime(2026, 1, 4, 17, 0, tzinfo=UTC)
+
+
+def test_precomputed_provider_rejects_other_dataset_and_empty_dir(tmp_path, policy):
+    empty = PrecomputedProvider(tmp_path, policy.limits.precision)
+    with pytest.raises(PrecomputedProviderError):
+        empty.date_range("Asia/Ho_Chi_Minh")
+    _write_proposal(tmp_path / "proposals_k1.json", "2026-01-05T08:00:00", fingerprint="old")
+    provider = PrecomputedProvider(tmp_path, policy.limits.precision)
+    provider.check_fingerprint("old")
+    with pytest.raises(PrecomputedProviderError, match="old"):
+        provider.check_fingerprint("fp")

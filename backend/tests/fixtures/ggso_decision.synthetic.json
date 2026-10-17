@@ -1,0 +1,154 @@
+{
+  "applied_vector_certified": false,
+  "constraint_checks": {
+    "booking_rate": true,
+    "candidate_recomputed": true,
+    "coverage": true,
+    "grid_and_bounds": true,
+    "identity": true,
+    "integrality": true,
+    "nominal_no_loss": true,
+    "validator_version": "ggso.independent.v1"
+  },
+  "currency": "TEST_UNITS",
+  "diagnostics": [],
+  "error_code": null,
+  "estimated_metrics": {
+    "booking_rate": 0.20522109337225905,
+    "conservative_utility": 27.699310110451858,
+    "expected_demand": 17.23857184326976,
+    "expected_gmv": 1748.4191432422028,
+    "nominal_incremental_gmv": 44.922444078402236,
+    "objective": 24.699310110451858,
+    "quote_opportunities": 84.0,
+    "reference_gmv": 1703.4966991638007,
+    "spatial_penalty": 0.0,
+    "temporal_penalty": 3.0
+  },
+  "forecast_version": "geomobinet_smg.mock:test-checkpoint-v1",
+  "generated_at": "2026-01-10T00:00:01Z",
+  "identity": {
+    "cutoff_time": "2026-01-10T00:00:00Z",
+    "dataset_fingerprint": "declared-synthetic-fingerprint-v1",
+    "dataset_id": "ggso.synthetic-fixture.v1",
+    "decision_id": "test-decision-001",
+    "feature_version": "test-feature-order-v1",
+    "geo_version": "test-geo-v1",
+    "horizon_minutes": 5,
+    "node_mapping_version": "test-node-order-v1",
+    "production_eligible": false,
+    "reference_policy_version": "test-effective-price-v1",
+    "required_hex_ids": [
+      "test-hex-00",
+      "test-hex-01"
+    ],
+    "semantic_profile_id": "ggso.confirmed-bookings.eligible-idle.h5.test.v1",
+    "snapshot_id": "test-snapshot-001",
+    "target_time": "2026-01-10T00:05:00Z",
+    "usage": "TEST_ONLY"
+  },
+  "optimized_policy": {
+    "test-hex-00": "1.5",
+    "test-hex-01": "1.5"
+  },
+  "policy_config_version": "test-policy-v1",
+  "production_effective": false,
+  "production_eligible": false,
+  "publication": "NOT_REQUESTED",
+  "recommendations": [
+    {
+      "action": "INCREASE",
+      "candidate_id": "6386fd4bef2f9f28b49a1f8beb30b1fe39e69be8b5609f6ffbc0791e8763c3b5",
+      "hex_id": "test-hex-00",
+      "surge_base": "1.2",
+      "surge_delta": "0.3",
+      "surge_proposed": "1.5"
+    },
+    {
+      "action": "INCREASE",
+      "candidate_id": "837aa766715b9860313ba9592a87230415efece8993d940b65a44f40fd455474",
+      "hex_id": "test-hex-01",
+      "surge_base": "1.2",
+      "surge_delta": "0.3",
+      "surge_proposed": "1.5"
+    }
+  ],
+  "response_version": "test-fitted-response-v1",
+  "result_status": "VALID",
+  "schema_version": "ggso.decision.v1",
+  "selected_candidates": [
+    {
+      "action": "0.3",
+      "candidate_id": "6386fd4bef2f9f28b49a1f8beb30b1fe39e69be8b5609f6ffbc0791e8763c3b5",
+      "conservative_utility": 14.816155485365766,
+      "decision_id": "test-decision-001",
+      "hex_id": "test-hex-00",
+      "incremental_gmv": 14.449405062758501,
+      "outcome": {
+        "expected_completed": 5.323116220031862,
+        "expected_demand": 7.738520676991476,
+        "expected_gmv": 798.4674330047792,
+        "fulfillment_rate": 0.6878725847252428
+      },
+      "proposed_surge": "1.5",
+      "scenario_ids": [
+        "block-bootstrap-0000",
+        "block-bootstrap-0001",
+        "block-bootstrap-0002"
+      ],
+      "scenario_increments": [
+        39.369475919345064,
+        13.664349807549684,
+        25.18240658571051
+      ],
+      "snapshot_id": "test-snapshot-001"
+    },
+    {
+      "action": "0.3",
+      "candidate_id": "837aa766715b9860313ba9592a87230415efece8993d940b65a44f40fd455474",
+      "conservative_utility": 12.883154625086092,
+      "decision_id": "test-decision-001",
+      "hex_id": "test-hex-01",
+      "incremental_gmv": 30.473039015643735,
+      "outcome": {
+        "expected_completed": 6.333011401582825,
+        "expected_demand": 9.500051166278286,
+        "expected_gmv": 949.9517102374236,
+        "fulfillment_rate": 0.6666291886998149
+      },
+      "proposed_surge": "1.5",
+      "scenario_ids": [
+        "block-bootstrap-0000",
+        "block-bootstrap-0001",
+        "block-bootstrap-0002"
+      ],
+      "scenario_increments": [
+        35.44571405211616,
+        37.80406593448026,
+        10.376203577638307
+      ],
+      "snapshot_id": "test-snapshot-001"
+    }
+  ],
+  "solver": {
+    "accepted_status": "OPTIMAL",
+    "dual_bound": 24.699310110451858,
+    "engine": "scipy.optimize.milp/HiGHS",
+    "message": "Optimization terminated successfully. (HiGHS Status 7: Optimal)",
+    "mip_gap": 0.0,
+    "raw_objective": 24.699310110451858,
+    "raw_status": 0,
+    "runtime_seconds": 0.008817900001304224,
+    "scipy_version": "1.17.1"
+  },
+  "trace": [
+    "INPUT_FROZEN",
+    "RESPONSE_LOADED",
+    "NETWORK_FORECAST_ONCE",
+    "SEMANTICS_VALIDATED",
+    "CANDIDATES_BUILT",
+    "INCUMBENT_DECODED",
+    "INDEPENDENT_VALIDATION_PASS"
+  ],
+  "usage": "TEST_ONLY"
+}

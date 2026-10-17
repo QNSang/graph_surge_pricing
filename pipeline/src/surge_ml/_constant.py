@@ -1,0 +1,6 @@
+"""Versioned mathematical/data identities, not operational policy defaults."""
+CONTRACT_VERSION = "duocast_ds_h5_v1"
+SEMANTIC_PROFILE = "ggso.confirmed-bookings.eligible-idle.h5.test.v2"
+DEMAND_DEFINITION = "confirmed_valid_bookings_per_5min"
+SUPPLY_DEFINITION = "online_idle_dispatch_eligible_stock_at_target"
+METRIC_VERSION = "duocast_metrics_log1p_eps1_v1"

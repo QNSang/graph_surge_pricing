@@ -1,7 +1,7 @@
 [project]
 name = "graph-surge-pipeline"
 version = "0.1.0"
-description = "Training pipeline for graph surge pricing (W4/H5 log-ratio residual forecast, dual-head GRU + GATv2 on H3 hex graph)"
+description = "DuoCast no-geo forecasting, independent response GLMs, and fail-closed GGSO optimization"
 requires-python = ">=3.10"
 dependencies = [
     "torch",
@@ -14,7 +14,11 @@ dependencies = [
     "pydantic>=2",
     "mlflow==3.16.1",
     "matplotlib>=3.10.9",
+    "h3>=4,<5",
 ]
+
+[project.optional-dependencies]
+baselines = ["lightgbm>=4,<5"]
 
 [project.scripts]
 surge-ml = "surge_ml.cli:main"

@@ -7,7 +7,7 @@ Action is taken from the file as-is; validation decides whether it is consistent
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -52,11 +52,13 @@ class PrecomputedProvider:
         self.precision = precision
         self.tz = ZoneInfo(timezone)
         self._by_cutoff: dict[datetime, Path] = {}
+        self.fingerprints: set[str | None] = set()
         self.info = ProviderInfo(id="precomputed_gnn", version="unknown", kind="PRECOMPUTED")
         for path in sorted(self.source_dir.glob("proposals_k*.json")):
             head = json.loads(path.read_text(encoding="utf-8"))
             if head.get("schema_version") != SOURCE_SCHEMA:
                 continue
+            self.fingerprints.add(head.get("data_fingerprint"))
             cutoff = datetime.fromisoformat(head["cutoff_ts_local"])
             if cutoff.tzinfo is None:
                 cutoff = cutoff.replace(tzinfo=ZoneInfo(head.get("source_timezone", timezone)))
@@ -70,6 +72,23 @@ class PrecomputedProvider:
 
     def available_cutoffs(self) -> list[datetime]:
         return sorted(self._by_cutoff)
+
+    def date_range(self, timezone: str) -> tuple[date, date]:
+        """First and last local dates covered by the proposal files."""
+        cutoffs = self.available_cutoffs()
+        if not cutoffs:
+            raise PrecomputedProviderError(f"no supported proposal files in {self.source_dir}")
+        tz = ZoneInfo(timezone)
+        return cutoffs[0].astimezone(tz).date(), cutoffs[-1].astimezone(tz).date()
+
+    def check_fingerprint(self, dataset_fingerprint: str) -> None:
+        """Refuse proposal files generated from a different dataset release than the one being imported."""
+        stale = sorted(str(f) for f in self.fingerprints if f != dataset_fingerprint)
+        if stale:
+            raise PrecomputedProviderError(
+                f"proposal files were generated from dataset fingerprint(s) {stale}, "
+                f"active dataset is {dataset_fingerprint}"
+            )
 
     def generate(self, snapshot: SnapshotInput) -> RecommendationBatch:
         path = self._by_cutoff.get(snapshot.cutoff_ts.astimezone(UTC))

@@ -1,0 +1,58 @@
+# Active model: docs/model/model.md. Paths are relative to this YAML file.
+# Supply four point-in-time tables; do NOT point this at legacy hex40/passenger-OD data.
+contract_version: geomobinet_smg_ds_h5_v1
+study_id: geomobinet-smg-v1
+seeds: [42, 43, 44]
+variants: [persistence, seasonal_naive, gru, gru_spatial, gru_mobility, gru_dual_graph, geomobinet_smg]
+output_dir: ../runs/geomobinet-smg-v1
+
+data:
+  market: ../../data/geomobinet/market.parquet
+  geo: ../../data/geomobinet/hex_geo.parquet
+  spatial: ../../data/geomobinet/spatial_edges.parquet
+  mobility: ../../data/geomobinet/od.parquet
+  metadata: ../../data/geomobinet/meta.json
+  timezone: Asia/Ho_Chi_Minh
+  history: 12
+  horizon: 1
+  validate_h3: true
+  availability: strict
+  dynamic_features: [demand_5m, idle_supply_t, backlog_t, eta_sec_t, base_surge]
+  geo_features: [distance_to_cbd_km, east_offset_km, north_offset_km, road_neighbor_count]
+  spatial_features: []
+  mobility_features: [flow_5m, eta_min, distance_km]
+  nullable_dynamic: []
+  log_dynamic: [demand_5m, idle_supply_t, backlog_t, eta_sec_t]
+  log_geo: []
+  log_spatial: []
+  log_mobility: [flow_5m, eta_min, distance_km]
+  train_fraction: 0.70
+  val_fraction: 0.15
+  split_mode: strict
+  embargo_steps: 0
+
+model:
+  hidden: 64
+  geo_hidden: 32
+  heads: 2
+  head_hidden: 32
+  dropout: 0.1
+
+train:
+  device: auto
+  epochs: 50
+  batch_size: 16
+  eval_batch_size: 64
+  lr: 0.001
+  weight_decay: 0.0001
+  grad_clip: 1.0
+  patience: 8
+  huber_delta: 1.0
+  num_threads: 2
+  lgbm_rounds: 500
+
+evaluation:
+  shortage_threshold: 1.0
+  low_supply_threshold: 2.0
+  high_demand_quantile: 0.90
+  seasonal_period: 288

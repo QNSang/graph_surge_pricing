@@ -8,6 +8,7 @@ pipeline/cache/
 .claude/
 artifacts/
 .pytest_cache/
+.pytest_tmp*/
 .ipynb_checkpoints/
 .jupyter/
 .jupyter_ystore.db

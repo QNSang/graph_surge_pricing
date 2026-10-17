@@ -1,0 +1,943 @@
+% !TEX program = xelatex
+% GGSO Technical Report: English, two-column, A4.
+% Compile with: xelatex -interaction=nonstopmode -halt-on-error GGSO_Technical_Report_EN.tex
+%
+% FONT: Uses actual Times New Roman when installed (typical Windows/Overleaf
+% private font configuration). Tinos is used only as a metrically compatible
+% fallback in environments without Times New Roman; no font files are bundled.
+%
+% FIGURES: Each figure currently contains ONLY a named placeholder.
+% Replace \figureplaceholder{...}{...}{...} with a figure environment and
+% \includegraphics[width=\columnwidth]{figures/your_file.pdf} when ready.
+\documentclass[a4paper,10pt,twocolumn]{article}
+
+\usepackage[a4paper,top=1.65cm,bottom=1.60cm,left=1.63cm,right=1.63cm]{geometry}
+\usepackage{fontspec}
+\IfFontExistsTF{Times New Roman}{\setmainfont{Times New Roman}}{\setmainfont{Tinos}}
+\setmonofont{DejaVu Sans Mono}[Scale=0.78]
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{newtxmath}
+\usepackage{graphicx,booktabs,tabularx,array,multirow}
+\usepackage{microtype}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{needspace}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage[unicode,hidelinks]{hyperref}
+
+\definecolor{darkink}{HTML}{171717}
+\definecolor{softline}{HTML}{A4A4A4}
+\definecolor{linkgray}{HTML}{2A4C73}
+\color{darkink}
+\hypersetup{colorlinks=true,linkcolor=linkgray,urlcolor=linkgray,citecolor=linkgray}
+\setlength{\columnsep}{0.58cm}
+\setlength{\parindent}{0.95em}
+\setlength{\parskip}{0pt}
+\linespread{1.00}
+\setlist[itemize]{leftmargin=*,nosep,topsep=2pt}
+\setlist[enumerate]{leftmargin=*,nosep,topsep=2pt}
+\titleformat{\section}{\normalfont\bfseries\fontsize{10.5}{12}\selectfont}{\thesection.}{0.48em}{}
+\titleformat{\subsection}{\normalfont\bfseries\fontsize{9.6}{11}\selectfont}{\thesubsection}{0.5em}{}
+\titlespacing*{\section}{0pt}{9pt}{4pt}
+\titlespacing*{\subsection}{0pt}{6pt}{2pt}
+\captionsetup{font=small,labelfont=bf,skip=3pt}
+\renewcommand{\refname}{References}
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\floatsep}{6pt plus 2pt minus 2pt}
+\setlength{\intextsep}{6pt plus 2pt minus 2pt}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\footnotesize\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\setcounter{secnumdepth}{2}
+\newcommand{\sigmoid}{\operatorname{sigmoid}}
+\newcommand{\logit}{\operatorname{logit}}
+\newcommand{\Quant}{\operatorname{Quantile}}
+\newcommand{\LN}{\operatorname{LayerNorm}}
+\newcommand{\GRU}{\operatorname{GRU}}
+\newcommand{\Huber}{\operatorname{Huber}}
+\newcommand{\INVALID}{\textsc{invalid}}
+\newcommand{\HOLD}{\textsc{hold}}
+\newcommand{\Vset}{\mathcal V}
+\newcommand{\Aset}{\mathcal A}
+\newcommand{\Edge}{\mathcal E}
+\newcommand{\given}{\,\vert\,}
+
+% Named placeholder: no graphic, fake screenshot, or TikZ diagram is generated.
+% Later replace this macro call with \includegraphics inside a normal figure.
+\newcommand{\figureplaceholder}[4][2.15cm]{%
+  \begin{figure}[H]
+  \centering
+  \fbox{\begin{minipage}[c][#1][c]{0.94\columnwidth}
+    \centering\footnotesize\textbf{Figure placeholder}\\[2pt]
+    \texttt{\detokenize{#2}}
+  \end{minipage}}
+  \caption{#3}
+  \label{#4}
+  \end{figure}%
+}
+
+
+
+\begin{document}
+\twocolumn[{%
+\begin{center}
+  {\Large\bfseries GGSO: Graph-Guided Surge Optimization\\[1.5pt]
+   for Network-Wide Ride-Hailing Pricing\par}
+
+  \vspace{5pt}
+  \begin{minipage}{0.94\textwidth}
+  \noindent\textbf{Abstract:}
+This project develops GGSO, an automated pricing system that generates
+network-wide surge adjustments for ride-hailing operations. Every five
+minutes, the DuoCast model forecasts booking demand and available drivers across
+H3 cells. It uses spatial adjacency and observed driver-mobility networks to
+capture relationships between areas. Cell-level response models then estimate
+how candidate prices may affect bookings and fulfillment, while a mixed-integer
+linear program selects a coordinated network pricing policy under business
+and operational constraints. Validated policies are applied automatically,
+while a monitoring dashboard provides execution status and a complete audit
+trail.
+    \par\vspace{2pt}
+    \noindent\textbf{Keywords:} Ride-hailing, surge pricing, spatiotemporal GNN,
+    demand elasticity, conservative optimization, MILP, automated pricing.
+  \end{minipage}
+\end{center}
+\vspace{6pt}
+}]
+
+% ======================== MAIN CONTENT ========================
+\section{Introduction and Business Problem}
+Ride-hailing demand and driver availability change quickly across locations and
+five-minute intervals. One H3 cell may face a shortage while a nearby cell has
+excess supply. These cells are not independent because drivers move across cell
+boundaries and market conditions can extend beyond a single area
+\cite{geng2019,besbes2021}.
+
+The current surge system assigns a multiplier to each H3 cell using only local
+information. This approach captures the market conditions within each cell, but
+it does not account for the spatial relationships among cells in a ride-hailing
+network. Similar local demand-supply conditions may therefore have different
+implications depending on nearby supply and observed driver movements.
+
+GGSO builds on the local approach by incorporating information from neighboring
+cells and the observed driver-mobility network. H3 adjacency represents spatial
+neighborhood relationships, while directed mobility links describe how drivers
+move between cells. This network context supports coordinated surge decisions
+that reflect market conditions beyond individual cells.
+
+GGSO evaluates surge multipliers jointly across the network rather than
+treating each cell in isolation. Its business objective is to improve
+network-level gross merchandise value (GMV) while maintaining acceptable
+booking rates and valid pricing. Every five minutes, the system automatically
+applies a complete network pricing policy that passes all validation checks.
+If validation fails, the current effective prices remain unchanged.
+
+\section{Proposed GGSO Framework}
+GGSO consists of three core components. \textbf{DuoCast} forecasts booking
+demand and available drivers for every H3 cell using local, spatial, and
+driver-mobility information. \textbf{Response models} estimate how candidate
+surge multipliers may change bookings and fulfillment in each cell.
+\textbf{Network optimization} uses a mixed-integer linear program (MILP) to
+select one candidate per cell while enforcing network and pricing constraints.
+
+At each five-minute decision cutoff, GGSO freezes a complete network snapshot
+containing historical marketplace observations, spatial and mobility graphs,
+current effective surge multipliers, and the operational context required by
+the response models. DuoCast runs once on this snapshot to forecast demand and
+available supply for every H3 cell.
+
+The response layer combines these forecasts with the fitted response parameters
+to evaluate the eligible pricing candidates. The MILP then selects one
+candidate for each cell as a coordinated network policy. An independent
+validator recomputes network coverage, hard constraints, and objective
+components before the policy is applied automatically. If validation fails,
+the current effective prices remain unchanged. Figure~\ref{fig:system} shows
+this end-to-end flow.
+
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=1\linewidth]{figures/ggso_system_architechture.png}
+    \caption{End-to-end GGSO architecture: point-in-time data, forecast,
+    candidate simulation, MILP, validation, automated execution, and monitoring
+    dashboard.}
+    \label{fig:system}
+\end{figure}
+
+\section{DuoCast Model}
+\subsection{Spatiotemporal Representation}
+DuoCast is a temporal, spatial, and directed-mobility GNN. For each H3 cell
+$i$, a shared gated recurrent unit (GRU) encodes historical marketplace
+observations. Two graph-attention branches aggregate context from spatially
+adjacent cells and directed, observed physical driver movements, respectively.
+A gated residual fusion combines the temporal, spatial, and mobility
+representations before two separate demand and supply prediction heads
+\cite{cho2014,brody2022,geng2019}.
+The forecasting function is written as
+\begin{equation}
+ (\widehat D_i,\widehat S_i)=
+ f_{\theta}(X_{t-T+1:t},G_{\mathrm{sp}},G_{\mathrm{od},t}),
+ \label{eq:forecast}
+\end{equation}
+where $X$ is the history available at cutoff $t$; $T$ is the number of
+observed snapshots; $G_{\mathrm{sp}}$ is the H3 adjacency graph;
+$G_{\mathrm{od},t}$ is the directed historical driver-mobility graph;
+and $\theta$ is the set of trainable parameters. The model produces two outputs
+for each H3 cell: $\widehat D_i$, the forecast booking demand in $(t,t+5]$, and
+$\widehat S_i$, the forecast available driver supply at $t+5$. Driver supply
+$S$ is distinct from service capacity $K$.
+
+Spatial and mobility edges encode different relationships. H3 adjacency
+represents the neighboring-cell structure, whereas the mobility graph summarizes
+directed historical driver movements between cells; it is not the same
+as passenger trip demand and does not predict future repositioning caused
+by a new surge price. A model may improve forecasts under the historical
+policy and still become unreliable outside the market conditions represented
+by its data.
+
+\subsection{Multi-Task Training Objective}
+Demand and supply are trained jointly with equal contributions to the loss.
+Both nonnegative targets are transformed using $\log(1+x)$ to reduce scale
+differences between sparse and high-volume cells. The training objective is
+\begin{equation}
+\begin{aligned}
+ \mathcal L_{\mathrm{fc}}=\frac{1}{2N}\sum_{i=1}^{N}\bigl[&
+ \rho_{\delta}(\widehat\ell_i^D-\log(1+D_i))\\
+ &+\rho_{\delta}(\widehat\ell_i^S-\log(1+S_i))\bigr],
+\end{aligned}
+\label{eq:forecastloss}
+\end{equation}
+where $N$ is the number of H3 cells; $D_i$ is the observed demand over the
+next five-minute interval; $S_i$ is the observed supply at the target time;
+$\widehat\ell_i^D$ and $\widehat\ell_i^S$ are the corresponding log-space
+predictions; and $\rho_{\delta}$ is the Huber penalty with threshold $\delta$.
+The factor $1/(2N)$ averages the loss across cells and the two targets, so
+neither task receives an additional weight. Predictions are decoded as
+$\widehat y=\max\{\exp(\widehat\ell)-1,0\}$. The Huber penalty is defined in
+Appendix~\ref{app:gnn}.
+
+\section{Marketplace Response and Optimization}
+\subsection{Cell-Level Response Models}
+GGSO fits two generalized linear models (GLMs) offline and independently for
+each eligible H3 cell using historical data. The demand GLM uses applied
+surge, booking counts, and demand context known before the pricing decision.
+The fulfillment GLM uses matched booking and completion cohorts, effective
+service capacity, and its own pre-decision context. At decision time, GGSO
+loads the fitted model parameters rather than refitting either model for each
+candidate.
+
+\paragraph{Demand response GLM.}
+Booking demand is modeled with a Negative Binomial GLM:
+\begin{equation}
+\begin{aligned}
+ D_{i,t}&\sim\mathrm{NegBin}(\mu_{i,t},\kappa_i),\\
+ \log\mu_{i,t}&=\alpha_i+w_i^{\top}c^D_{i,t}
+                   -\beta_i\log s_{i,t},
+\end{aligned}
+\label{eq:nb}
+\end{equation}
+Here $D_{i,t}$ is the observed booking count, $\mu_{i,t}$ is its expected
+value, and $\kappa_i$ is the dispersion parameter. The vector $c^D_{i,t}$
+contains demand context known before the pricing decision, while $s_{i,t}>0$
+is the applied surge multiplier. The parameters $\alpha_i$ and $w_i$ capture the
+cell baseline and context effects. The coefficient $0\le\beta_i\le4$
+controls the estimated demand response to surge: a larger $\beta_i$ implies
+a stronger decrease in expected bookings as surge increases. During candidate
+simulation, $\beta_i$ adjusts the DuoCast demand forecast; the fitted mean
+$\mu_{i,t}$ does not replace that forecast.
+
+\paragraph{Fulfillment response GLM.}
+Among the requests in the same matured booking cohort, completed rides follow
+a Binomial GLM:
+\begin{equation}
+\begin{aligned}
+ C_{i,t}&\sim\mathrm{Binomial}(D_{i,t},\pi_{i,t}),\\
+ \logit(\pi_{i,t})&=b_i+v_i^{\top}c^F_{i,t}
+  +\gamma_i\log\frac{K_{i,t}+\varepsilon}{D_{i,t}+\varepsilon}.
+\end{aligned}
+\label{eq:binomial}
+\end{equation}
+Here $C_{i,t}$ counts completed rides from the $D_{i,t}$ booking cohort, and
+$\pi_{i,t}$ is the probability that a booking is fulfilled before the explicit
+capacity cap is applied. The estimate depends on fulfillment context
+$c^F_{i,t}$ and on the ratio between service capacity $K_{i,t}$ and booking
+demand. The parameters $b_i$ and $v_i$ capture the cell baseline and context effects,
+$\varepsilon>0$ stabilizes the ratio, and $0\le\gamma_i\le1$ controls its
+influence on fulfillment. The model output is the fulfillment probability
+$\pi_{i,t}$, which becomes the fulfillment response used in candidate
+simulation.
+
+The models remain separate because booking behavior and operational
+fulfillment are different mechanisms. Surge enters the demand model directly,
+whereas the fulfillment model responds to capacity relative to demand. Their
+fitted coefficients are combined during candidate simulation, with the final
+completion estimate capped by available capacity. Both models require separate
+support and calibration checks. Because they are estimated from observational
+data, their coefficients are not treated as established causal price effects.
+Appendix~\ref{app:response} gives the likelihood objectives and fitting checks.
+
+\subsection{Candidate Simulation and Conservative Scoring}
+For each cell, GGSO applies an adjustment
+$a\in\mathcal A=\{-0.3,-0.2,\ldots,0.2,0.3\}$ to the current surge $s_i^0$,
+giving $s_i(a)=s_i^0+a$. Candidates outside the configured pricing bounds or
+historical support are rejected. For each eligible candidate, GGSO estimates
+demand, completed rides, and modeled GMV as
+\begin{equation}
+ \widehat D_i(a)=\widehat D_i
+ \left(\frac{s_i(a)}{s_i^0}\right)^{-\beta_i},
+ \label{eq:response}
+\end{equation}
+\begin{equation}
+\begin{aligned}
+ \widehat C_i(a)&=\min\{\widehat D_i(a)FR_i(a),K_i\},\\
+ U_i(a)&=\widehat C_i(a)\,p_i\,s_i(a),
+\end{aligned}
+\label{eq:utility}
+\end{equation}
+where $FR_i(a)$ is the fitted fulfillment response and $p_i$ is the
+reference fare before surge. Thus, $U_i(a)$ is the modeled GMV for candidate
+$a$, not its improvement over the current policy.
+
+The GLM coefficients $\beta_i$ and $\gamma_i$ are uncertain because they are
+estimated from historical data. The response artifact therefore stores $B$
+paired parameter scenarios
+$\vartheta_i^{(b)}=(\beta_i^{(b)},\gamma_i^{(b)})$. Under each scenario, GGSO
+recomputes both the candidate and the reference action using the same parameter
+pair:
+\begin{equation}
+\begin{aligned}
+ \Delta U_i^{(b)}(a)&=U_i(a;\vartheta_i^{(b)})
+                     -U_i(0;\vartheta_i^{(b)}),\\
+ \widetilde U_i(a)&=\Quant_{0.05}
+       \left(\left\{\Delta U_i^{(b)}(a)\right\}_{b=1}^{B}\right).
+\end{aligned}
+ \label{eq:quantile}
+\end{equation}
+The fifth percentile represents lower-performing parameter scenarios and is
+used as a conservative score to reduce the risk of overconfident decisions.
+
+All candidates share one DuoCast forecast under the current policy. The
+simulator changes the response calculations for each action; it does not rerun
+DuoCast or predict driver redistribution. Its validated candidate table is the
+input to the network optimizer.
+
+\subsection{Joint Network MILP}
+Let $z_{i,a}\in\{0,1\}$ indicate whether cell $i$ selects adjustment $a$,
+with exactly one permitted candidate selected for each cell, and let $s_i$
+denote the resulting surge multiplier. The network optimizer solves
+\begin{equation}
+\begin{aligned}
+ \max_{z}\quad
+ &\sum_{i,a}z_{i,a}\widetilde U_i(a)
+ -\lambda_t\sum_{i,a}z_{i,a}|a|\\
+ &-\lambda_g\sum_{(i,j)\in\Edge}w_{ij}|s_i-s_j|,
+\end{aligned}
+\label{eq:milp}
+\end{equation}
+The first term rewards conservative incremental GMV. The second discourages
+large adjustments from the current surge, while the third discourages large
+surge differences between neighboring cells. The coefficients $\lambda_t$
+and $\lambda_g$ control the two penalties, and $w_{ij}$ is the weight of edge
+$(i,j)$. The solver linearizes $|s_i-s_j|$ internally as described in
+Appendix~\ref{app:milp}. Two principal hard constraints are
+\begin{equation}
+\begin{aligned}
+ BR_{\min}Q&\le\sum_{i,a}z_{i,a}\widehat D_i(a)
+                       \le BR_{\max}Q,\\
+ \sum_{i,a}z_{i,a}\Delta U_i(a)&\ge0,
+ \qquad Q=\sum_i Q_i>0,
+\end{aligned}
+\label{eq:constraints}
+\end{equation}
+where $Q_i$ is the compatible number of quote opportunities, and
+$\Delta U_i(a)=U_i(a)-U_i(0)$ is nominal modeled incremental GMV.
+The no-loss constraint uses nominal modeled incremental GMV, while the
+objective uses the conservative lower-tail score. It prevents a negative
+nominal network total but does not guarantee realized GMV. HiGHS (High
+Performance Optimization Software) solves the MILP, and an independent
+validator checks network coverage and all hard constraints before the
+selected policy is applied. Further details are in
+Appendix~\ref{app:milp}.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=1\linewidth]{figures/candidate_milp_validation_flow.png}
+    \caption{Candidate-to-decision flow: supported price grid, response simulation, paired uncertainty, joint MILP, and independent validity gate.}
+    \label{fig:candidate-flow}
+\end{figure}
+
+\section{Validation and Evidence}
+\label{sec:validation}
+The evaluation assesses both the technical performance of GGSO and its
+impact on business outcomes.
+
+\subsection{Forecasting Performance}
+DuoCast is evaluated on a chronologically held-out test set using raw-space
+and log-space forecasting metrics. LightGBM \cite{ke2017}, GRU-only,
+Spatial GATv2, and Mobility GATv2 use the same data split, forecast horizon,
+node set, and target definitions.
+
+
+\begin{table}[H]
+\centering
+\caption{Forecasting performance on the held-out test set.}
+\label{tab:forecast-performance}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+\textbf{Model}
+& \textbf{D-MAE} $\downarrow$
+& \textbf{S-MAE} $\downarrow$
+& \textbf{Log D-MAE} $\downarrow$
+& \textbf{Log S-MAE} $\downarrow$
+& \textbf{Log D/S MAE} $\downarrow$
+& \textbf{Log D/S RMSE} $\downarrow$ \\
+\midrule
+LightGBM baseline
+& 74.2329 & 5.8163 & 0.5149 & 0.1639 & 0.4587 & 0.5794 \\
+
+GRU-only
+& 10.0524 & 4.6252 & 0.0780 & 0.1317 & 0.1489 & 0.1898 \\
+
+Spatial GATv2
+& 9.8521 & 4.6257 & 0.0768 & 0.1318 & 0.1484 & 0.1890 \\
+
+Mobility GATv2
+& 9.8627 & 4.6268 & 0.0769 & 0.1318 & 0.1484 & 0.1890 \\
+
+DuoCast
+& \textbf{9.7866}
+& \textbf{4.6237}
+& \textbf{0.0765}
+& \textbf{0.1317}
+& \textbf{0.1482}
+& \textbf{0.1888} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+
+
+Table~\ref{tab:forecast-performance} compares DuoCast with
+the baseline and ablation models on the held-out test set.
+DuoCast achieves the lowest demand MAE, supply MAE, log-demand MAE,
+log demand-to-supply MAE, and log demand-to-supply RMSE, while matching
+the GRU-only result for log-supply MAE.
+
+Compared with the GRU-only baseline, DuoCast reduces demand MAE by 2.64\%
+and supply MAE by 0.03\%. The MAE and RMSE of the log demand-to-supply ratio
+are reduced by 0.47\% and 0.53\%, respectively.
+
+Both Spatial GATv2 and Mobility GATv2 outperform the
+GRU-only baseline on demand forecasting and demand-to-supply ratio
+estimation, indicating that spatial adjacency and directed driver mobility
+provide complementary predictive information.
+
+\subsection{Response Model Performance}
+The demand and fulfillment GLMs are evaluated independently on
+chronologically held-out observations. For the demand model, prediction error
+is summarized using MAE and RMSE. For the fulfillment model, fulfillment-rate
+MAE measures the difference between predicted and observed fulfillment rates.
+The evaluation also reports the fitted response coefficients, their uncertainty,
+and the proportion of H3 cells with validated response models.
+
+\begin{table}[H]
+\centering
+\caption{Negative Binomial demand GLM performance}
+\label{tab:demand-glm-performance}
+\footnotesize
+\begin{tabularx}{\columnwidth}{@{}Xc@{}}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+Demand MAE $\downarrow$                 & 6.85 \\
+Demand RMSE $\downarrow$                & 10.42 \\
+Median $\beta$                          & 1.20 \\
+Median 95\% CI Width ($\beta$)          & 0.28 \\
+Eligible H3 Cells (\%) $\uparrow$      & 92.5\% \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Binomial fulfillment GLM performance
+.}
+\label{tab:fulfillment-glm-performance}
+\footnotesize
+\begin{tabularx}{\columnwidth}{@{}Xc@{}}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+FR MAE $\downarrow$                     & 0.028 \\
+Median $\gamma$                         & 0.65 \\
+Median 95\% CI Width ($\gamma$)         & 0.18 \\
+Eligible H3 Cells (\%) $\uparrow$      & 94.2\% \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The median values of $\beta$ and $\gamma$ summarize the estimated demand and
+fulfillment responses across eligible H3 cells. Their interval widths indicate
+the uncertainty of these estimates, while eligible-cell coverage reports the
+proportion of required cells with successfully fitted and validated response
+models.
+
+These metrics are evaluated against outcomes observed under historically
+applied surge multipliers. They measure predictive reliability but do not
+establish causal responses to previously unobserved price changes.
+
+
+\subsection{Optimization and Safety Validation}
+For small test networks, the MILP solution is compared with exhaustive
+enumeration of all feasible candidate combinations. This comparison verifies
+the objective, candidate selection, Booking Rate bounds, nominal modeled GMV
+no-loss constraint, and spatial penalty.
+
+For each full-network decision, an independent validator recomputes candidate
+eligibility, network coverage, hard constraints, and objective components from
+the selected candidates. Any critical validation failure marks the decision
+as \INVALID, and no new pricing policy is applied.
+
+\subsection{Real-World Business Evaluation}
+A prospective switchback experiment evaluates GGSO over a sufficiently large
+operational region containing multiple connected H3 cells. The entire region
+alternates between the GGSO policy and the current policy across pre-specified
+randomized time blocks \cite{bojinov2023}. Total realized GMV across the
+experimental region is measured for each block as the primary outcome, and the
+estimated treatment effect is reported with confidence intervals. Until this
+experiment is completed, GGSO's business impact remains unverified.
+
+\section{Automated Pricing and Monitoring}
+
+Every five minutes, GGSO uses the latest marketplace data to forecast demand
+and supply, evaluate surge candidates, and select a network-wide pricing policy.
+A valid policy is applied automatically. If validation fails, the current
+effective prices remain unchanged.
+
+The monitoring dashboard displays the H3 map, observed and forecast demand and
+supply, current, recommended, and applied surge multipliers, decision status,
+validation errors, and execution history. It updates after each pricing cycle
+and retains the decision and version identity of each result.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=1\linewidth]{figures/operator_console.png}
+    \caption{GGSO monitoring dashboard with marketplace forecasts, surge
+    recommendations, execution status, and audit history.}
+    \label{fig:ui}
+\end{figure}
+
+The backend checks price bounds, precision, reference versions, and idempotency
+before applying a policy, then records the execution receipt. Each new cycle
+uses the latest confirmed effective surge multipliers as its reference policy.
+
+\section{Conclusion and Next Steps}
+The current surge system determines a multiplier for each H3 cell from its
+local market conditions. GGSO extends this approach by incorporating spatial
+adjacency and directed driver mobility across cells. DuoCast forecasts demand
+and available supply, the response models estimate how each cell may react to
+candidate multipliers, and the MILP selects a coordinated network pricing
+policy subject to business and pricing constraints.
+
+GGSO is designed to apply a validated network-wide pricing policy automatically
+every five minutes, while the monitoring dashboard provides visibility into
+forecasts, pricing decisions, validation results, and execution history.
+The next steps are to validate the forecasting and response models, verify the
+optimization pipeline in shadow mode, and evaluate the complete system through
+a real-world switchback experiment. Until that experiment is completed,
+GGSO's realized business impact remains unverified. Its business value should
+ultimately be judged by its causal effect on realized network GMV.
+
+% ============================ APPENDIX ============================
+\clearpage
+\appendix
+\begin{center}\large\bfseries APPENDIX\end{center}
+\section{Notation and Data Definitions}\label{app:data}
+
+\subsection{Decision Setting}
+Let $\Vset$ be the set of H3 resolution-7 cells and
+$\Edge\subseteq\Vset\times\Vset$ the pricing-adjacency edges. At decision
+time $t$, GGSO uses the current surge vector $s^0$ and data available up to
+that time. The forecast horizon is $H=5$ minutes, and $T$ denotes the
+configurable number of historical five-minute snapshots used by DuoCast.
+
+\begin{table}[H]
+\centering
+\caption{Core notation and compatible units.}
+\label{tab:notation}
+\footnotesize
+\begin{tabularx}{\columnwidth}{@{}p{0.30\columnwidth}X@{}}
+\toprule
+\textbf{Symbol} & \textbf{Definition}\\
+\midrule
+$\mathcal V,\mathcal E$ & Set of H3 cells and pricing-adjacency edges.\\
+$i,j$ & H3 cell indices.\\
+$t,T,H$ & Decision cutoff, history length, forecast horizon (minutes).\\
+$D_i,\widehat D_i$ & Observed and predicted confirmed valid booking requests per five-minute cohort.\\
+$S_i,\widehat S_i$ & Observed and predicted online, idle, dispatch-eligible drivers (stock at timestamp).\\
+$K_i$ & Effective service capacity, measured in rides per five-minute interval; not driver stock.\\
+$Q_i,Q$ & Compatible quote opportunities per cell and network total, with $Q=\sum_iQ_i$.\\
+$C_i,FR_i$ & Cohort-completed rides and pre-cap fulfillment probability.\\
+$s_i^0,s_i(a)$ & Effective reference surge and candidate surge multiplier.\\
+$a,\mathcal A_i$ & Additive surge adjustment and eligible actions for cell $i$.\\
+$p_i,U_i$ & Reference fare before surge and nominal modeled GMV.\\
+$\Delta U_i,\widetilde U_i$ & Nominal modeled GMV increment and conservative incremental score.\\
+$G_{\mathrm{sp}},G_{\mathrm{od}}$ & Spatial adjacency and directed observed-driver-mobility graphs.\\
+$z_{i,a},d_{ij}$ & MILP binary choice and auxiliary variable for $|s_i-s_j|$.\\
+$\beta_i,\gamma_i$ & Fitted price sensitivity and fulfillment response coefficients.\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Business Data Definitions}
+\textbf{Demand:} $D_{i,t}$ is the number of confirmed valid booking requests
+created in cell $i$ during $(t-5,t]$. The forecast $\widehat D_i$ refers to
+the interval $(t,t+5]$.
+
+\textbf{Supply:} $S_{i,t}$ is the number of online, idle, and
+dispatch-eligible drivers in cell $i$ at time $t$. The forecast
+$\widehat S_i$ is the corresponding driver stock at $t+5$.
+
+\textbf{Fulfillment:} $C_{i,t}$ is the number of completed rides from the
+booking cohort represented by $D_{i,t}$, measured over a defined maturity
+horizon, with $0\le C_{i,t}\le D_{i,t}$.
+
+\textbf{Quote opportunities:} $Q_{i,t}$ is the number of compatible quote
+opportunities for the same cell, time window, and booking cohort.
+
+All input features, prices, graph observations, and context variables must be
+available by cutoff $t$ and aligned to the same decision interval.
+
+\section{Forecasting Network and Training Mathematics}\label{app:gnn}
+\subsection{Temporal, Spatial, and Mobility Encoders}
+Let $x_{i,k}\in\mathbb R^{F}$ be the observed feature vector for cell $i$
+at historical step $k$. The shared temporal encoder computes
+\begin{equation}
+ h_{i,k}=\GRU(x_{i,k},h_{i,k-1}),\qquad
+ \ell_i=\LN(h_{i,T}).
+ \label{eq:gru}
+\end{equation}
+The spatial relation uses H3 neighborhood edges; the mobility relation
+uses physical driver transitions directed from origin to destination and
+available before cutoff. Each relation $r\in\{\mathrm{sp},\mathrm{od}\}$
+has independent attention parameters. For observed edge attributes
+$q_{ji}^{(r)}$, one relation-aware GATv2 formulation is
+\begin{equation}
+\begin{aligned}
+ e_{ji}^{(r)}=&\; a_r^\top \operatorname{LeakyReLU}
+ \bigl(W_s^{(r)}\ell_j+W_t^{(r)}\ell_i\\
+ &\hspace{42pt}+W_e^{(r)}q_{ji}^{(r)}\bigr),\\
+ \alpha_{ji}^{(r)}=&\;
+ \frac{\exp(e_{ji}^{(r)})}{\sum_{k\in\mathcal N_r(i)}\exp(e_{ki}^{(r)})},\\
+ m_i^{(r)}=&\;\sum_{j\in\mathcal N_r(i)}
+ \alpha_{ji}^{(r)}W_v^{(r)}\ell_j,
+\end{aligned}
+\label{eq:attention}
+\end{equation}
+where $\mathcal N_r(i)$ is the observed incoming-neighbor set under
+relation $r$, $e_{ji}^{(r)}$ is an attention logit,
+$\alpha_{ji}^{(r)}$ is its normalized coefficient, and $m_i^{(r)}$ is
+the aggregated relation-specific message. Separate parameters allow the two
+branches to learn different meanings for spatial proximity and observed
+driver movement.
+
+\subsection{Gated Fusion and Prediction Heads}
+The temporal representation and the messages from the two graph branches are
+combined through gated residual fusion:
+\begin{equation}
+\begin{aligned}
+ c_i^{\mathrm{net}}=&\;W_c[m_i^{(\mathrm{sp})}\Vert
+                         m_i^{(\mathrm{od})}],\\
+ \omega_i=&\;\sigmoid\bigl(W_g[\ell_i\Vert m_i^{(\mathrm{sp})}
+                  \Vert m_i^{(\mathrm{od})}]\bigr),\\
+ z_i=&\;\LN(\ell_i+\omega_i\odot c_i^{\mathrm{net}}),
+\end{aligned}
+\label{eq:fusion}
+\end{equation}
+where $\Vert$ denotes concatenation, $\odot$ denotes element-wise
+multiplication, and $\omega_i$ is a learned gate. Two separate heads output
+$\widehat\ell_i^D=f_D(z_i)$ and $\widehat\ell_i^S=f_S(z_i)$, subsequently
+decoded into nonnegative demand and supply forecasts. The gate controls how
+much network context is added to the temporal representation for each cell.
+
+\subsection{Log Transformation and Huber Loss}
+Demand and supply targets are transformed using
+$\widetilde y=\log(1+y)$ before training. This transformation is defined
+for zero-valued observations and compresses the difference between
+low-volume and high-volume H3 cells.
+
+The prediction error is measured in log space using the Huber loss:
+\begin{equation}
+\rho_\delta(e)=
+\begin{cases}
+ \frac12e^2, & |e|\le\delta,\\
+ \delta\left(|e|-\frac12\delta\right), & |e|>\delta.
+\end{cases}
+\label{eq:huber}
+\end{equation}
+where $e$ is the difference between the predicted and observed log-transformed
+target, and $\delta$ controls the transition between the two regions. The loss
+is quadratic for small errors and linear for large errors, reducing the
+influence of unusually large demand or supply observations.
+
+\section{Marketplace Response Estimation and Capacity}\label{app:response}
+\subsection{Demand Negative Binomial Likelihood}
+The expected booking demand in Eq.~\eqref{eq:nb} is
+$\mu_{i,t}=\exp(\alpha_i+w_i^\top c^D_{i,t}-\beta_i\log s_{i,t})$.
+The constrained maximum-likelihood training objective is
+\begin{equation}
+ \mathcal L_{D,i}=
+ -\sum_{t\in\mathcal T_i^{\mathrm{train}}}
+ \log P_{\mathrm{NB}}(D_{i,t}\mid\mu_{i,t},\kappa_i),
+ \quad0\le\beta_i\le4.
+ \label{eq:nbnll}
+\end{equation}
+The parameter tuple includes intercept $\alpha_i$, ordered context
+coefficients $w_i$, elasticity $\beta_i$, and dispersion $\kappa_i$.
+The Negative Binomial mean--dispersion convention must remain consistent
+through fitting and evaluation because alternative parameterizations assign
+different meanings to $\kappa_i$. Observed surge variation and sufficient
+per-cell data are prerequisites for meaningful estimation.
+
+\subsection{Cohort-Level Binomial Likelihood}
+For Eq.~\eqref{eq:binomial}, the conditional fulfillment likelihood gives the
+following negative-log-likelihood objective, with the parameter-independent
+binomial coefficient omitted:
+\begin{equation}
+\begin{aligned}
+ \mathcal L_{F,i}=-\sum_{t\in\mathcal T_i^{\mathrm{train}}}
+ \bigl[&C_{i,t}\log\pi_{i,t}\\
+ &+(D_{i,t}-C_{i,t})\log(1-\pi_{i,t})\bigr],
+\end{aligned}
+\label{eq:binnll}
+\end{equation}
+subject to $0\le\gamma_i\le1$ and coherent cohort counting.
+When $D=0,C=0$, the interval has no positive binomial trials; it cannot
+be treated as evidence for $100\%$ fulfillment. The coefficient $\gamma_i$
+does not define the response by itself; the baseline $b_i$, context effects
+$v_i$, and capacity-to-demand ratio are also required.
+
+\subsection{Available Service Capacity}
+If a direct, validated capacity estimate is unavailable, the proposed
+approximation is
+\begin{equation}
+ K_i=\widehat S_i\,r_i\frac{H}{60}
+ \min\!\left\{1,\frac{H}{\max(ETA_i,H)}\right\},\quad H=5,
+ \label{eq:capacity}
+\end{equation}
+where $r_i$ is the assumed average rides per driver per hour and $ETA_i$ is a
+pickup-time estimate in minutes. Thus, $K_i$ is measured in rides per five
+minutes, while $\widehat S_i$ is measured in drivers. The factor $H/60$
+converts the hourly service rate to the forecast horizon, and the final factor
+reduces capacity when pickup time exceeds that horizon.
+Equation~\eqref{eq:capacity} is a heuristic capacity conversion, not
+a third trained prediction head. Unit consistency, zero-capacity handling,
+and calibration require separate validation.
+
+\subsection{Interpretation and Causal Limitations}
+Because the response models are fitted on observational data, the estimated
+$\beta_i$ and $\gamma_i$ are interpreted as predictive associations rather
+than causal effects. Response parameters are estimated independently for
+every required H3 cell.
+
+\section{Candidate Evaluation and Conservative Scoring}\label{app:candidate}
+\subsection{Candidate Evaluation}
+For each H3 cell, GGSO evaluates the fixed action grid
+\begin{equation}
+\mathcal A=\{-0.3,-0.2,-0.1,0,0.1,0.2,0.3\},
+\qquad
+s_i(a)=s_i^0+a.
+\label{eq:grid}
+\end{equation}
+A candidate is eligible when its multiplier is positive, remains within
+the configured surge and adjustment bounds, and is supported by historical
+prices.
+
+For each eligible action, expected demand is
+\begin{equation}
+\widehat D_i(a)
+=
+\widehat D_i
+\left(\frac{s_i(a)}{s_i^0}\right)^{-\beta_i}.
+\end{equation}
+
+The baseline fulfillment logit and candidate fulfillment probability are
+\begin{equation}
+\begin{aligned}
+\eta_i^0
+&=
+b_i+v_i^\top c_i^F+
+\gamma_i\log
+\frac{K_i+\varepsilon}{\widehat D_i+\varepsilon},\\
+FR_i(a)
+&=
+\sigmoid\left(
+\eta_i^0+
+\gamma_i\log
+\frac{\widehat D_i+\varepsilon}
+     {\widehat D_i(a)+\varepsilon}
+\right).
+\end{aligned}
+\end{equation}
+
+Expected completed rides and GMV are then
+\begin{equation}
+\begin{aligned}
+\widehat C_i(a)
+&=
+\min\{\widehat D_i(a)FR_i(a),K_i\},\\
+U_i(a)
+&=
+\widehat C_i(a)p_i s_i(a).
+\end{aligned}
+\end{equation}
+
+Capacity, fulfillment context, and pre-surge fare remain fixed across all
+candidates of the same cell and decision interval.
+
+\subsection{Conservative Scoring}
+Let $\vartheta_i^{(b)}=(\beta_i^{(b)},\gamma_i^{(b)})$ denote a
+response-parameter scenario. The incremental GMV of action $a$ under
+scenario $b$ is
+\begin{equation}
+\Delta U_i^{(b)}(a)
+=
+U_i(a;\vartheta_i^{(b)})
+-
+U_i(0;\vartheta_i^{(b)}).
+\end{equation}
+
+The conservative score is the empirical fifth percentile of the paired
+incremental values:
+\begin{equation}
+\widetilde U_i(a)
+=
+\Quant_{0.05}
+\left(\{\Delta U_i^{(b)}(a)\}_b\right).
+\end{equation}
+
+The candidate and baseline are recomputed using the same parameter scenario,
+so the score measures their paired difference under response uncertainty.
+For the zero action, both the incremental GMV and conservative score are zero.
+
+\section{MILP Formulation and Validation}\label{app:milp}
+\subsection{Decision Variables and Objective}
+For each cell $i\in\Vset$ and eligible candidate
+$a\in\mathcal A_i$, let $z_{i,a}$ indicate whether the candidate is
+selected. Exactly one candidate is selected for each cell:
+\begin{equation}
+\begin{gathered}
+ z_{i,a}\in\{0,1\},\qquad
+ \sum_{a\in\mathcal A_i}z_{i,a}=1,\\
+ s_i=\sum_{a\in\mathcal A_i}z_{i,a}s_i(a).
+\end{gathered}
+\label{eq:milpvars}
+\end{equation}
+
+For each pricing edge $(i,j)$, the auxiliary variable $d_{ij}$ linearizes
+the absolute difference between the selected surge multipliers:
+\begin{equation}
+ d_{ij}\ge0,\qquad
+ d_{ij}\ge s_i-s_j,\qquad
+ d_{ij}\ge s_j-s_i.
+\end{equation}
+The objective maximizes conservative incremental utility while penalizing
+large changes from the current price and large price differences between
+neighboring cells, as defined in Eq.~\eqref{eq:milp}.
+
+\subsection{Hard Constraints}
+The predicted network Booking Rate is constrained by
+\begin{equation}
+ BR_{\min}Q
+ \le
+ \sum_{i\in\Vset}\sum_{a\in\mathcal A_i}
+ z_{i,a}\widehat D_i(a)
+ \le
+ BR_{\max}Q,
+ \qquad Q=\sum_i Q_i>0.
+\end{equation}
+
+The selected policy must also satisfy the nominal modeled GMV no-loss
+constraint:
+\begin{equation}
+ \sum_{i\in\Vset}\sum_{a\in\mathcal A_i}
+ z_{i,a}\,[U_i(a)-U_i(0)]\ge0.
+ \label{eq:noloss}
+\end{equation}
+The feasible candidate sets already enforce the action grid, surge bounds,
+adjustment limits, and historical support requirements.
+
+\subsection{Solver and Independent Validation}
+HiGHS solves the MILP. A proven optimal solution or a feasible incumbent
+returned at the time limit may be accepted only if an independent validator
+recomputes network coverage, candidate eligibility, Booking Rate, nominal
+modeled GMV, and the objective from the selected candidates. This independent
+check prevents a solver status alone from being treated as evidence that the
+resulting network policy is valid. If no feasible solution exists or validation
+fails, GGSO produces no recommendation and the current prices remain unchanged.
+
+\section{Model Assumptions and Limitations}\label{app:limitations}
+DuoCast assumes that historical temporal, spatial, and mobility patterns
+remain informative for the next five-minute interval. Forecast reliability
+may decrease when marketplace conditions differ substantially from the
+training data.
+
+The response models are estimated from observational data. Their predictive
+performance does not establish that the estimated price effects are causal.
+
+Surge pricing can induce spatial supply responses \cite{besbes2021}. GGSO
+candidate simulation, however, holds capacity, fare, and pre-decision context
+fixed across price candidates and does not model driver redistribution.
+Cell-level conservative scores do not form a joint network-level confidence
+bound, and modeled no-loss does not guarantee realized no-loss.
+
+\begin{thebibliography}{99}
+\small
+
+\bibitem{geng2019}
+X. Geng, Y. Li, L. Wang, L. Zhang, Q. Yang, J. Ye, and Y. Liu,
+``Spatiotemporal Multi-Graph Convolution Network for Ride-Hailing Demand
+Forecasting,'' in \textit{Proceedings of the AAAI Conference on Artificial
+Intelligence}, vol. 33, no. 1, pp. 3656--3663, 2019.
+doi: \href{https://doi.org/10.1609/aaai.v33i01.33013656}{10.1609/aaai.v33i01.33013656}.
+
+\bibitem{besbes2021}
+O. Besbes, F. Castro, and I. Lobel, ``Surge Pricing and Its Spatial Supply
+Response,'' \textit{Management Science}, vol. 67, no. 3, pp. 1350--1367,
+2021. doi:
+\href{https://doi.org/10.1287/mnsc.2020.3622}{10.1287/mnsc.2020.3622}.
+
+\bibitem{cho2014}
+K. Cho, B. van Merri\"enboer, C. Gulcehre, D. Bahdanau, F. Bougares,
+H. Schwenk, and Y. Bengio, ``Learning Phrase Representations using RNN
+Encoder--Decoder for Statistical Machine Translation,'' in
+\textit{Proceedings of EMNLP}, pp. 1724--1734, 2014.
+doi: \href{https://doi.org/10.3115/v1/D14-1179}{10.3115/v1/D14-1179}.
+
+\bibitem{brody2022}
+S. Brody, U. Alon, and E. Yahav, ``How Attentive Are Graph Attention
+Networks?'' in \textit{Proceedings of ICLR}, 2022.
+Available: \url{https://openreview.net/forum?id=F72ximsx7C1}.
+
+\bibitem{ke2017}
+G. Ke, Q. Meng, T. Finley, T. Wang, W. Chen, W. Ma, Q. Ye, and T.-Y. Liu,
+``LightGBM: A Highly Efficient Gradient Boosting Decision Tree,'' in
+\textit{Advances in Neural Information Processing Systems}, vol. 30, 2017.
+
+\bibitem{bojinov2023}
+I. Bojinov, D. Simchi-Levi, and J. Zhao, ``Design and Analysis of Switchback
+Experiments,'' \textit{Management Science}, vol. 69, no. 7,
+pp. 3759--3777, 2023. doi:
+\href{https://doi.org/10.1287/mnsc.2022.4583}{10.1287/mnsc.2022.4583}.
+
+\end{thebibliography}
+
+\end{document}

@@ -2,16 +2,18 @@
 
 Usage:
     uv run python scripts/import_dataset.py --from-date 2026-01-01 --to-date 2026-01-02 --provider mock
-    uv run python scripts/import_dataset.py --provider precomputed --source ../pipeline/outputs/proposals
-Defaults: --from-date = first dataset day, --to-date = --from-date (one day). Re-running is a no-op.
+    uv run python scripts/import_dataset.py --provider precomputed --source <dir with proposals_k*.json>
+Defaults: --from-date = first dataset day, --to-date = --from-date (one day). With --provider precomputed and no
+dates, the range is the days the proposal files cover. Re-running is a no-op.
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
-from datetime import date
+from datetime import UTC, date
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -43,8 +45,22 @@ def main(argv: list[str] | None = None) -> int:
     settings = get_settings()
     policy = get_policy()
     ds = load_active_dataset(settings.repo_path)
-    start = args.from_date or ds.start_date
-    end = args.to_date or start
+    tz = ZoneInfo(ds.timezone)
+    provider = None
+    if args.provider != "none":
+        try:
+            provider = build_provider(args.provider, policy, args.source)
+            if isinstance(provider, PrecomputedProvider):
+                provider.check_fingerprint(ds.fingerprint)
+                files_start, files_end = provider.date_range(ds.timezone)
+        except ValueError as exc:  # includes PrecomputedProviderError
+            parser.error(str(exc))
+    if isinstance(provider, PrecomputedProvider) and args.from_date is None and args.to_date is None:
+        # Default to the days the proposal files cover, so every imported snapshot can get a GNN set.
+        start, end = files_start, files_end
+    else:
+        start = args.from_date or ds.start_date
+        end = args.to_date or start
     if start < ds.start_date or end > last_date(ds) or end < start:
         parser.error(f"date range must be within [{ds.start_date}, {last_date(ds)}] and ordered")
 
@@ -66,10 +82,9 @@ def main(argv: list[str] | None = None) -> int:
             precision=policy.limits.precision,
         )
         print(f"snapshots in range: {len(snapshot_ids)} ({start} .. {end})")
-        if args.provider == "none":
+        if provider is None:
             return 0
 
-        provider = build_provider(args.provider, policy, args.source)
         register_provider(session, provider)
         session.commit()
         snapshots = session.scalars(
@@ -90,9 +105,18 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  REJECTED {snap.snapshot_id}: {result.summary['set_errors']}")
             else:
                 created += 1
-        if isinstance(provider, PrecomputedProvider) and missing:
-            print(f"  {missing} snapshots had no precomputed file")
         print(f"recommendation sets: created={created} rejected={rejected} unchanged={skipped}")
+        if isinstance(provider, PrecomputedProvider):
+            if missing:
+                print(f"  {missing} snapshots had no precomputed file")
+            # Files whose cutoff matches no imported snapshot mean the two timelines disagree; fail loudly.
+            snapshot_ts = {s.cutoff_ts.astimezone(UTC) for s in snapshots}
+            in_range = [c for c in provider.available_cutoffs() if start <= c.astimezone(tz).date() <= end]
+            orphans = [c for c in in_range if c not in snapshot_ts]
+            print(f"  precomputed cutoffs in range: {len(in_range)}, without a snapshot: {len(orphans)}")
+            if orphans:
+                print(f"  first unmatched cutoff: {orphans[0].astimezone(tz).isoformat()}", file=sys.stderr)
+                return 1
     return 0
 
 

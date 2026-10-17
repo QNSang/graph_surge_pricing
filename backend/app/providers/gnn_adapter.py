@@ -1,6 +1,7 @@
-"""Phase 6 placeholder: online GNN inference adapter.
+"""Placeholder for online GNN inference.
 
-Until model serving is decided (TD-04), GNN output reaches the backend through PrecomputedProvider.
+TD-04 is decided as precomputed for the MVP: `surge-ml surge --split test` writes proposal files offline and
+`scripts/import_dataset.py --provider precomputed` loads them through PrecomputedProvider.
 """
 
 from __future__ import annotations
@@ -12,4 +13,7 @@ class GNNProvider:
     info = ProviderInfo(id="gnn_provider", version="0.0.0", kind="GNN", description="Not implemented (Phase 6).")
 
     def generate(self, snapshot: SnapshotInput) -> RecommendationBatch:
-        raise NotImplementedError("GNN online inference is not wired yet; use PrecomputedProvider.")
+        raise NotImplementedError(
+            "online GNN inference is out of MVP scope; run `surge-ml surge --split test` and import with "
+            "--provider precomputed --source <dir>"
+        )

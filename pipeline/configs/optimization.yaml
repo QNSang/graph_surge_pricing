@@ -1,0 +1,21 @@
+# Synthetic verification profile ONLY, not approved operating/pricing thresholds.
+usage: TEST_ONLY
+schema_version: ggso.policy.test.v2
+version: test-policy-v2
+currency: TEST_UNITS
+surge_min: '1.0'
+surge_max: '2.0'
+delta_max: '0.3'
+br_min: 0.1
+br_max: 0.9
+lambda_temporal: 5.0
+lambda_spatial: 2.0
+epsilon: 0.000001
+quantile: 0.05
+quantile_method: linear_equal_weight
+solver_time_limit_seconds: 10.0
+solver_mip_rel_gap: 0.0
+integrality_tolerance: 0.0000001
+feasibility_tolerance: 0.0000001
+money_tolerance: 0.000001
+monetary_scale: 100.0

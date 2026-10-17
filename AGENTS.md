@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **graph_surge_pricing** (7224 symbols, 12168 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **graph_surge_pricing** (9858 symbols, 16349 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -42,6 +42,10 @@ This project is indexed by GitNexus as **graph_surge_pricing** (7224 symbols, 12
 
 <!-- gitnexus:end -->
 
+<!-- active-duocast-routing -->
+
+Current implementation: read `docs/implementation/PIPELINE_REFACTOR_STATUS.md`, `pipeline/README.md` and `pipeline/DATA_INPUTS.md`. Active modules use `train/duocast`, `train/responses` and `inferences`. DuoCast checkpoints must satisfy the active architecture and semantic contract. Official-data eligibility is still a separate gate.
+
 ## Skill and documentation routing
 
 Before implementing, reviewing, debugging, or refactoring, inspect the skills available in the current session and use the smallest relevant set. Read each selected `SKILL.md` completely before taking task actions. If a referenced skill is unavailable, state that briefly and continue with the safest equivalent workflow.
@@ -69,11 +73,14 @@ Before implementing, reviewing, debugging, or refactoring, inspect the skills av
 
 ### Project documentation to read when relevant
 
-- Data, feature, label, or D/S work: read `docs/data/metadata.md` first (tables, columns, D/S definition, coding rules), then `data/CURRENT.json` and the release's `schema.yaml`. Generation details are in `docs/data/mock_data_spec_hcmc.md` and `tools/mock_v2/README.md`. Never hardcode the dataset path, 61 days, or 8640 snapshots; read them from `data/CURRENT.json` and `meta/manifest.json`. Treat `oracle/` as diagnostics only, never model input. Archive old releases under `data/_archive/`; never delete them.
-- Model, target, feature, controller, or surge-policy changes: read `docs/model/technical_report.md`, `pipeline/configs/feature_contract.json`, `pipeline/configs/benchmark_plan.json`, and `pipeline/configs/train.yaml`.
-- ML pipeline, training, evaluation, or CLI changes: read the relevant files under `docs/ml_pipeline/` and the active pipeline configs.
-- Frontend, page, component, visualization, or API-integration changes: read the relevant files under `docs/frontend/` plus the backend contract used by that UI.
-- Stakeholder-facing output or business claims: read the relevant files under `docs/stakeholder/` and verify claims against the technical report and current code.
-- Documentation maintenance: use `gsd-docs-update` when the request is a broader documentation generation or verification task.
+- Start with `docs/README.md`, `docs/ai-context/READ_FIRST.md`, `docs/ai-context/CURRENT_STATE.md`, and `docs/implementation/TASKS.md`. Read Git status before edits; preserve pre-existing changes and deletions. A planned task does not authorize implementation by itself.
+- Data, features, labels, or D/S: read `docs/contracts/DATA_SCHEMA.md`, `docs/contracts/MODEL_IO_CONTRACT.md`, the active pipeline README/config, and the selected dataset's metadata. The active DuoCast config is `pipeline/configs/duocast.yaml`; legacy workflows may resolve data through `data/CURRENT.json` and the release manifest. Do not mix their data contracts or hardcode paths, days, or snapshot counts. Treat `oracle/` as diagnostics only, never model input; preserve old releases and never delete them as cleanup.
+- Forecast/model work: read `docs/model/forecasting_contract.md`, `docs/model/duocast_model.md`, and `pipeline/README.md`. DuoCast uses a Temporal GRU, Spatial GATv2, directed Mobility GATv2, gated fusion, and independent demand/supply heads. Demand is confirmed valid booking requests, and GGSO v1 effective available supply is the online idle dispatch-eligible driver stock (not capacity K). Q/capacity details remain open in GD-02/03.
+- GGSO response/candidate/optimization: read the relevant files under `docs/model/`, their contracts under `docs/contracts/`, and `docs/technical_report/GGSO_DESIGN_REFERENCE.md`. Read `docs/technical_report/README.md` for provenance: the design reference is an extract, not the full report. Preserve source equations and explicitly record missing estimator, support, pricing, or solver settings in `docs/implementation/DECISION_LOG.md`.
+- ML pipeline, training, evaluation, or CLI: read `pipeline/README.md`, active config/source, `docs/implementation/IMPLEMENTATION_PLAN.md`, and relevant files under `docs/evaluation/`. The default CLI uses the DuoCast pipeline. Do not infer test results or run training from a docs request.
+- Backend/decision integration: read `docs/backend/decision_pipeline.md`, `docs/contracts/CANDIDATE_POLICY_CONTRACT.md`, and `backend/README.md`; inspect actual consumer contracts. Whole-network GGSO validation certifies only the full optimized recommendation. Every five minutes GGSO uses current effective pricing from a new snapshot and automatically applies only the independently validated full-network policy. The monitoring dashboard has no manual pricing actions. No production-mode change/publication without explicit authorization.
+- Frontend/page/component/visualization: read `docs/frontend/` plus the actual backend contract. Preserve historical docs; do not fabricate legacy ratio/Pressure/Revision fields from new forecast outputs. Read known issues for stale historical cross-references.
+- Business claims: use the source register/design reference, evaluation protocol, and actual experiment artifacts. Estimated GMV is not realized causal uplift; missing results remain missing.
+- Documentation maintenance: use `gsd-docs-update` when available; otherwise read sources, edit narrowly, and inspect read-back/diffs. For docs-only requests, edit Markdown only; do not change code, configs, schemas, tests, data, or runtime state. Do not restore removed legacy docs merely to satisfy old links.
 
-Read only the documentation needed for the task, but follow cross-references needed to resolve the contract. Treat live code and executable configs as implementation evidence; if they disagree with a specification or report, do not silently choose one—identify the mismatch, determine the intended source of truth from the task context, and keep code, configs, tests, and docs synchronized.
+Read only the documentation needed for the task and relevant cross-references. Live code/configs describe implementation evidence; source reports/specs describe intended design. Record mismatches in `docs/implementation/DECISION_LOG.md`, not silent algorithm or semantic changes. Keep approved contracts, implementation, tests, and docs synchronized when the task authorizes those changes. Preserve the generated GitNexus block and existing skill-routing rules above.

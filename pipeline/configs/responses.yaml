@@ -1,0 +1,28 @@
+# TEST_ONLY numerical profile. Replace paths/cohort metadata after data review.
+input: ../../data/responses/observations.json
+output: ../runs/responses/response-v1/artifact.json
+# Optional held-out diagnostic report; does not change artifact approval gates.
+report: ../runs/responses/response-v1/calibration.json
+dataset_id: REQUIRED_DATASET_ID
+node_mapping_version: REQUIRED_NODE_MAPPING
+required_hex_ids: []
+artifact_version: response-v1
+split_time: null
+fit_as_of: null
+fit:
+  usage: TEST_ONLY
+  version: test-fit-config-v1
+  epsilon: 0.000001
+  max_iterations: 1000
+  log_dispersion_min: -5.0
+  log_dispersion_max: 10.0
+  min_train_rows: 30
+  min_validation_rows: 10
+  min_positive_trial_rows: 20
+  min_unique_surge: 3
+  max_demand_mean_nll: 20.0
+  max_fulfillment_mean_nll: 20.0
+  max_fulfillment_calibration_error: 0.15
+  bootstrap_replicates: 50
+  bootstrap_block_size: 12
+  seed: 42

@@ -47,6 +47,25 @@ uv run python scripts/import_dataset.py --provider precomputed --source <dir wit
 uv run uvicorn app.main:app --reload       # http://localhost:8000/docs
 ```
 
+### GNN recommendations (precomputed)
+
+TD-04 is decided as precomputed for the MVP: the model runs offline in `pipeline/` and the backend imports its
+output. The backend still never imports `surge_ml` or torch.
+
+```bash
+cd ../pipeline
+uv run surge-ml prepare
+uv run surge-ml train --variant gru_gatv2_40 --seed 42   # writes runs/<study_id>/gru_gatv2_40/seed_42/best.pt
+cd ../backend
+powershell -File scripts/build_gnn_demo.ps1               # or scripts/build_gnn_demo.sh
+```
+
+The script runs `surge-ml surge --split test` (one batched forecast for every eligible cutoff of the test split,
+one `proposals_k{k}.json` each plus `index.json`), then `import_dataset.py --provider precomputed`. Without
+`--from-date/--to-date`, the import covers exactly the days the files cover. It refuses files whose
+`data_fingerprint` differs from the active dataset, and exits 1 if any file's cutoff matches no snapshot.
+Proposals carry `deployment_eligible: false` and an uncalibrated controller, so they are for demo/replay only.
+
 The dataset path, number of days and hex count are never hardcoded. They come from `data/CURRENT.json` and the
 release's `meta/manifest.json`, and the import checks the dataset fingerprint against the manifest. Re-running an
 import is a no-op: snapshots are keyed on dataset, region, cutoff and node mapping, and recommendation sets on a
@@ -139,6 +158,6 @@ batch. The E2E test runs the 14-step flow from spec §15.4. If the sandbox block
 
 ## Not in scope yet
 
-- Phase 6 GNN adapter (`app/providers/gnn_adapter.py` is a stub; use the precomputed provider).
+- Online GNN inference (`app/providers/gnn_adapter.py` stays a stub; the MVP uses precomputed proposals).
 - Switching the frontend (`ui/app`) from `ui/data.json` to this API.
 - Open decisions: TD-06 (HOLD override, behind a config flag), TD-08 (limit values), TD-09 (retention).
